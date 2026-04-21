@@ -1,0 +1,10 @@
+[package]
+name = "via-protocol"
+version = "0.1.0"
+edition = "2024"
+description = "VIA/Vial keyboard configuration protocol over USB HID"
+
+[dependencies]
+hidapi = "2.6"
+tracing = "0.1"
+thiserror = "2"

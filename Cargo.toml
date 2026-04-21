@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/via-protocol", "crates/viar"]
+resolver = "3"
