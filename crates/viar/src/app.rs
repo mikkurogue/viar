@@ -3,7 +3,7 @@ use tracing::{debug, info, warn};
 use via_protocol::{
     device::{check_hid_permissions, discover_keyboards},
     keycode_groups,
-    layout::{find_layout, generic_layout, parse_vial_definition},
+    layout::{generic_layout, parse_vial_definition},
     HidAccessStatus, KeyboardDevice, LightingProtocol, ViaProtocol,
 };
 
@@ -122,6 +122,7 @@ impl ViarApp {
         let proto = ViaProtocol::new(dev);
 
         // Try Vial definition first, then hardcoded, then generic
+        let mut layout_warning: Option<String> = None;
         let layout = match proto.vial_get_definition() {
             Ok(json) => {
                 info!("got Vial definition from firmware, parsing KLE layout");
@@ -134,23 +135,20 @@ impl ViarApp {
                         layout
                     }
                     Err(e) => {
-                        warn!(error = %e, "failed to parse Vial definition, falling back");
-                        find_layout(info.vendor_id, info.product_id).unwrap_or_else(|| {
-                            debug!("no built-in layout, using generic");
-                            generic_layout(4, 12)
-                        })
+                        warn!(error = %e, "failed to parse Vial definition, falling back to generic layout");
+                        layout_warning = Some(format!(
+                            "Failed to parse keyboard layout: {e}. Using generic grid."
+                        ));
+                        generic_layout(4, 12)
                     }
                 }
             }
             Err(e) => {
-                debug!(error = %e, "no Vial definition available, trying built-in layouts");
-                find_layout(info.vendor_id, info.product_id).unwrap_or_else(|| {
-                    debug!(
-                        "no built-in layout for {:04x}:{:04x}, using generic",
-                        info.vendor_id, info.product_id
-                    );
-                    generic_layout(4, 12)
-                })
+                debug!(error = %e, "no Vial definition available, using generic layout");
+                layout_warning = Some(format!(
+                    "Could not fetch layout from firmware: {e}. Using generic grid."
+                ));
+                generic_layout(4, 12)
             }
         };
 
@@ -271,6 +269,9 @@ impl ViarApp {
             }
         }
 
+        if let Some(warning) = layout_warning {
+            self.set_status(StatusMessage::error(warning));
+        }
         self.screen = AppScreen::Connected;
     }
 

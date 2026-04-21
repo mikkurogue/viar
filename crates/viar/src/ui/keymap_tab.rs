@@ -127,6 +127,25 @@ impl ViarApp {
             if is_hovered && ui.input(|i| i.pointer.primary_clicked()) {
                 clicked_key = Some(key_idx);
             }
+
+            // Tooltip with debug info
+            if is_hovered {
+                egui::show_tooltip_at_pointer(
+                    ui.ctx(),
+                    ui.layer_id(),
+                    ui.id().with(("key_tip", key_idx)),
+                    |ui| {
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "{}\n0x{:04X}  matrix ({},{})",
+                                label, raw_kc, key_pos.row, key_pos.col
+                            ))
+                            .monospace()
+                            .size(12.0),
+                        );
+                    },
+                );
+            }
         }
 
         if let Some(idx) = clicked_key {
@@ -225,6 +244,63 @@ impl ViarApp {
 
                     ui.add_space(4.0);
 
+                    // Raw keycode hex input
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new("Hex:")
+                                .size(11.0)
+                                .color(egui::Color32::from_rgb(130, 130, 145)),
+                        );
+                        let hex_id = egui::Id::new("picker_hex_input");
+                        let mut hex_str: String = ui
+                            .memory(|mem| mem.data.get_temp(hex_id))
+                            .unwrap_or_else(|| format!("{:04X}", raw_kc));
+                        let resp = ui.add(
+                            egui::TextEdit::singleline(&mut hex_str)
+                                .desired_width(60.0)
+                                .font(egui::TextStyle::Monospace),
+                        );
+                        ui.memory_mut(|mem| mem.data.insert_temp(hex_id, hex_str.clone()));
+
+                        if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            if let Ok(v) = u16::from_str_radix(hex_str.trim(), 16) {
+                                ui.memory_mut(|mem| {
+                                    mem.data.insert_temp(egui::Id::new("pending_keycode"), v);
+                                    mem.data
+                                        .insert_temp(egui::Id::new("pending_key_idx"), key_idx);
+                                });
+                            }
+                        }
+
+                        let preview_kc = u16::from_str_radix(hex_str.trim(), 16).unwrap_or(0);
+                        if preview_kc != 0 {
+                            let preview = Keycode(preview_kc);
+                            ui.label(
+                                egui::RichText::new(format!("→ {}", preview.name()))
+                                    .size(11.0)
+                                    .color(egui::Color32::from_rgb(140, 170, 200)),
+                            );
+                        }
+
+                        if ui
+                            .add(
+                                egui::Button::new(egui::RichText::new("Set").size(11.0))
+                                    .corner_radius(egui::CornerRadius::same(3)),
+                            )
+                            .clicked()
+                        {
+                            if let Ok(v) = u16::from_str_radix(hex_str.trim(), 16) {
+                                ui.memory_mut(|mem| {
+                                    mem.data.insert_temp(egui::Id::new("pending_keycode"), v);
+                                    mem.data
+                                        .insert_temp(egui::Id::new("pending_key_idx"), key_idx);
+                                });
+                            }
+                        }
+                    });
+
+                    ui.add_space(2.0);
+
                     // Group tabs
                     ui.horizontal_wrapped(|ui| {
                         for (i, group) in self.picker_groups.iter().enumerate() {
@@ -305,6 +381,7 @@ impl ViarApp {
                                         if response.clicked() {
                                             picked_kc = Some(kc.0);
                                         }
+                                        response.on_hover_text(kc.description());
                                     }
                                 }
                             });

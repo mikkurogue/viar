@@ -20,18 +20,23 @@ impl Keycode {
             0x0001 => KeycodeCategory::Transparent,
             0x0004..=0x00FF => KeycodeCategory::Basic,
             0x0100..=0x1FFF => KeycodeCategory::Mod,
-            0x2000..=0x3FFF => KeycodeCategory::LayerTap,
-            0x4000..=0x4FFF => KeycodeCategory::LayerOn,
-            0x5000..=0x50FF => KeycodeCategory::LayerMomentary,
-            0x5100..=0x51FF => KeycodeCategory::LayerDefault,
-            0x5200..=0x52FF => KeycodeCategory::LayerToggle,
-            0x5300..=0x53FF => KeycodeCategory::LayerOneShotLayer,
-            0x5400..=0x54FF => KeycodeCategory::LayerOneShotMod,
-            0x5700 => KeycodeCategory::TriLayer,
-            0x5701 => KeycodeCategory::TriLayer,
-            0x5C00..=0x5CFF => KeycodeCategory::TapDance,
-            0x7C00..=0x7FFF => KeycodeCategory::Unicode,
-            0x7000..=0x7BFF => KeycodeCategory::ModTap,
+            0x2000..=0x3FFF => KeycodeCategory::ModTap,
+            0x4000..=0x4FFF => KeycodeCategory::LayerTap,
+            0x5000..=0x51FF => KeycodeCategory::LayerMod,
+            0x5200..=0x521F => KeycodeCategory::LayerOn, // TO(layer)
+            0x5220..=0x523F => KeycodeCategory::LayerMomentary, // MO(layer)
+            0x5240..=0x525F => KeycodeCategory::LayerDefault, // DF(layer)
+            0x5260..=0x527F => KeycodeCategory::LayerToggle, // TG(layer)
+            0x5280..=0x529F => KeycodeCategory::LayerOneShotLayer, // OSL(layer)
+            0x52A0..=0x52BF => KeycodeCategory::LayerOneShotMod, // OSM(mod)
+            0x52C0..=0x52DF => KeycodeCategory::LayerTapToggle, // TT(layer)
+            0x52E0..=0x52FF => KeycodeCategory::PersistentDefLayer,
+            0x5700..=0x57FF => KeycodeCategory::TapDance,
+            0x7C77 => KeycodeCategory::TriLayer,
+            0x7C78 => KeycodeCategory::TriLayer,
+            0x7000..=0x70FF => KeycodeCategory::Magic,
+            0x7800..=0x78FF => KeycodeCategory::Lighting,
+            0x7C00..=0x7DFF => KeycodeCategory::Quantum,
             _ => KeycodeCategory::Unknown,
         }
     }
@@ -45,8 +50,8 @@ impl Keycode {
         match self.0 {
             0x0000 => "NONE".to_string(),
             0x0001 => "TRNS".to_string(),
-            0x5700 => "TL_LO".to_string(),
-            0x5701 => "TL_HI".to_string(),
+            0x7C77 => "TL_LO".to_string(),
+            0x7C78 => "TL_HI".to_string(),
             _ => self.decode_complex(),
         }
     }
@@ -68,35 +73,52 @@ impl Keycode {
         let raw = self.0;
         match self.category() {
             KeycodeCategory::LayerTap => {
-                // LT(layer, kc): bits [13:8] = layer, bits [7:0] = keycode
-                let layer = (raw >> 8) & 0x1F;
+                // LT(layer, kc): bits [11:8] = layer (4 bits), bits [7:0] = keycode
+                let layer = (raw >> 8) & 0x0F;
                 let kc = raw & 0xFF;
                 let kc_name = basic_keycode_name(kc).unwrap_or("??");
                 format!("LT({layer},{kc_name})")
             }
+            KeycodeCategory::LayerMod => {
+                // LM(layer, mod): bits [12:8] = mod, bits [7:4] = layer...
+                // Actually: QK_LAYER_MOD = 0x5000, layer in bits [8:4], mods in bits [3:0] shifted
+                // QMK: #define LM(layer, mod) (QK_LAYER_MOD | (((layer) & 0xF) << 4) | ((mod) & 0xF))
+                let layer = (raw >> 4) & 0xF;
+                let mods = raw & 0xF;
+                let mod_str = mod_mask_to_string(mods as u8);
+                format!("LM({layer},{mod_str})")
+            }
             KeycodeCategory::LayerMomentary => {
-                let layer = raw & 0xFF;
+                let layer = raw & 0x1F;
                 format!("MO({layer})")
             }
             KeycodeCategory::LayerDefault => {
-                let layer = raw & 0xFF;
+                let layer = raw & 0x1F;
                 format!("DF({layer})")
             }
             KeycodeCategory::LayerToggle => {
-                let layer = raw & 0xFF;
+                let layer = raw & 0x1F;
                 format!("TG({layer})")
             }
             KeycodeCategory::LayerOneShotLayer => {
-                let layer = raw & 0xFF;
+                let layer = raw & 0x1F;
                 format!("OSL({layer})")
             }
             KeycodeCategory::LayerOneShotMod => {
-                let mods = raw & 0xFF;
+                let mods = raw & 0x1F;
                 format!("OSM({mods:#04x})")
             }
+            KeycodeCategory::LayerTapToggle => {
+                let layer = raw & 0x1F;
+                format!("TT({layer})")
+            }
+            KeycodeCategory::PersistentDefLayer => {
+                let layer = raw & 0x1F;
+                format!("PDF({layer})")
+            }
             KeycodeCategory::LayerOn => {
-                // TO(layer)
-                let layer = (raw >> 4) & 0xF;
+                // TO(layer): QK_TO | layer
+                let layer = raw & 0x1F;
                 format!("TO({layer})")
             }
             KeycodeCategory::ModTap => {
@@ -133,6 +155,112 @@ impl Keycode {
             _ => format!("{raw:#06x}"),
         }
     }
+
+    /// Get a human-friendly description for tooltips.
+    pub fn description(self) -> String {
+        // Special keycodes
+        match self.0 {
+            0x0000 => return "No action (transparent to layers below)".into(),
+            0x0001 => return "Transparent — falls through to the layer below".into(),
+            0x7C77 => return "Tri-Layer Lower — activates tri-layer when held".into(),
+            0x7C78 => return "Tri-Layer Upper — activates tri-layer when held".into(),
+            _ => {}
+        }
+        // Basic keycodes with richer descriptions
+        if let Some(desc) = basic_keycode_description(self.0) {
+            return desc.into();
+        }
+        // Letters
+        if self.0 >= 0x04 && self.0 <= 0x1D {
+            let ch = (b'A' + (self.0 - 0x04) as u8) as char;
+            return format!("Character {ch}");
+        }
+        // F-keys
+        if self.0 >= 0x3A && self.0 <= 0x45 {
+            let n = self.0 - 0x3A + 1;
+            return format!("Function key F{n}");
+        }
+        // Numpad 1-9
+        if self.0 >= 0x59 && self.0 <= 0x61 {
+            let n = self.0 - 0x59 + 1;
+            return format!("Numpad {n}");
+        }
+        // Complex keycodes by category
+        match self.category() {
+            KeycodeCategory::Mod => {
+                let mods = ((self.0 >> 8) & 0x1F) as u8;
+                let kc = self.0 & 0xFF;
+                let mod_str = mod_mask_to_string(mods);
+                if kc == 0 {
+                    format!("{mod_str} modifier")
+                } else {
+                    let kc_name = basic_keycode_name(kc).unwrap_or("??");
+                    format!("{kc_name} with {mod_str} held")
+                }
+            }
+            KeycodeCategory::ModTap => {
+                let mods = ((self.0 >> 8) & 0x1F) as u8;
+                let kc = self.0 & 0xFF;
+                let kc_name = basic_keycode_name(kc).unwrap_or("??");
+                let mod_str = mod_mask_to_string(mods);
+                format!("{kc_name} on tap, {mod_str} on hold")
+            }
+            KeycodeCategory::LayerTap => {
+                let layer = (self.0 >> 8) & 0x0F;
+                let kc = self.0 & 0xFF;
+                let kc_name = basic_keycode_name(kc).unwrap_or("??");
+                format!("{kc_name} on tap, Layer {layer} on hold")
+            }
+            KeycodeCategory::LayerMod => {
+                let layer = (self.0 >> 4) & 0xF;
+                let mods = (self.0 & 0xF) as u8;
+                let mod_str = mod_mask_to_string(mods);
+                format!("Activate Layer {layer} with {mod_str}")
+            }
+            KeycodeCategory::LayerMomentary => {
+                let layer = self.0 & 0x1F;
+                format!("Momentary Layer {layer} — active while held")
+            }
+            KeycodeCategory::LayerToggle => {
+                let layer = self.0 & 0x1F;
+                format!("Toggle Layer {layer} on/off")
+            }
+            KeycodeCategory::LayerOn => {
+                let layer = self.0 & 0x1F;
+                format!("Turn on Layer {layer} (deactivate all others)")
+            }
+            KeycodeCategory::LayerDefault => {
+                let layer = self.0 & 0x1F;
+                format!("Set Layer {layer} as the default base layer")
+            }
+            KeycodeCategory::LayerOneShotLayer => {
+                let layer = self.0 & 0x1F;
+                format!("One-Shot Layer {layer} — active for the next keypress only")
+            }
+            KeycodeCategory::LayerOneShotMod => {
+                let mods = (self.0 & 0x1F) as u8;
+                let mod_str = mod_mask_to_string(mods);
+                format!("One-Shot {mod_str} — applies to the next keypress only")
+            }
+            KeycodeCategory::LayerTapToggle => {
+                let layer = self.0 & 0x1F;
+                format!("Layer {layer} on hold, toggle on tap")
+            }
+            KeycodeCategory::PersistentDefLayer => {
+                let layer = self.0 & 0x1F;
+                format!("Persistently set Layer {layer} as default (survives reboot)")
+            }
+            KeycodeCategory::TapDance => {
+                let idx = self.0 & 0xFF;
+                format!("Tap Dance {idx} — different actions for tap/hold/double-tap")
+            }
+            KeycodeCategory::TriLayer => "Tri-Layer key".into(),
+            _ => {
+                let name = self.name();
+                format!("{name} (0x{:04X})", self.0)
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for Keycode {
@@ -157,6 +285,12 @@ pub enum KeycodeCategory {
     TapDance,
     ModTap,
     TriLayer,
+    LayerMod,
+    LayerTapToggle,
+    PersistentDefLayer,
+    Magic,
+    Lighting,
+    Quantum,
     Unicode,
     Unknown,
 }
@@ -222,6 +356,80 @@ fn shifted_symbol(kc: u16) -> Option<&'static str> {
         0x36 => "<",  // ,
         0x37 => ">",  // .
         0x38 => "?",  // /
+        _ => return None,
+    })
+}
+
+/// Human-friendly descriptions for basic HID keycodes (for tooltips).
+fn basic_keycode_description(kc: u16) -> Option<&'static str> {
+    Some(match kc {
+        0x04..=0x1D => {
+            // Letters A-Z — return None to fall through to generic
+            return None;
+        }
+        0x1E => "Number 1",
+        0x1F => "Number 2",
+        0x20 => "Number 3",
+        0x21 => "Number 4",
+        0x22 => "Number 5",
+        0x23 => "Number 6",
+        0x24 => "Number 7",
+        0x25 => "Number 8",
+        0x26 => "Number 9",
+        0x27 => "Number 0",
+        0x28 => "Enter / Return",
+        0x29 => "Escape",
+        0x2A => "Backspace",
+        0x2B => "Tab",
+        0x2C => "Spacebar",
+        0x2D => "Minus / Hyphen",
+        0x2E => "Equals",
+        0x2F => "Left Bracket",
+        0x30 => "Right Bracket",
+        0x31 => "Backslash",
+        0x33 => "Semicolon",
+        0x34 => "Apostrophe / Quote",
+        0x35 => "Grave / Backtick",
+        0x36 => "Comma",
+        0x37 => "Period / Dot",
+        0x38 => "Forward Slash",
+        0x39 => "Caps Lock",
+        0x3A..=0x45 => return None, // F-keys handled below
+        0x46 => "Print Screen",
+        0x47 => "Scroll Lock",
+        0x48 => "Pause / Break",
+        0x49 => "Insert",
+        0x4A => "Home",
+        0x4B => "Page Up",
+        0x4C => "Delete",
+        0x4D => "End",
+        0x4E => "Page Down",
+        0x4F => "Right Arrow",
+        0x50 => "Left Arrow",
+        0x51 => "Down Arrow",
+        0x52 => "Up Arrow",
+        0x53 => "Num Lock",
+        0x54 => "Numpad Divide",
+        0x55 => "Numpad Multiply",
+        0x56 => "Numpad Minus",
+        0x57 => "Numpad Plus",
+        0x58 => "Numpad Enter",
+        0x59..=0x61 => return None, // Numpad 1-9 — obvious
+        0x62 => "Numpad 0",
+        0x63 => "Numpad Decimal",
+        0x65 => "Application / Menu key",
+        0x66 => "System Power",
+        0xA8 => "Mute audio",
+        0xA9 => "Volume Up",
+        0xAA => "Volume Down",
+        0xE0 => "Left Control",
+        0xE1 => "Left Shift",
+        0xE2 => "Left Alt / Option",
+        0xE3 => "Left GUI / Super / Command",
+        0xE4 => "Right Control",
+        0xE5 => "Right Shift",
+        0xE6 => "Right Alt / AltGr",
+        0xE7 => "Right GUI / Super / Command",
         _ => return None,
     })
 }
@@ -488,19 +696,27 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
                 let mut v = Vec::new();
                 // MO(0)..MO(9)
                 for i in 0..10u16 {
-                    v.push(Keycode(0x5000 | i));
+                    v.push(Keycode(0x5220 | i));
                 }
                 // TG(0)..TG(9)
+                for i in 0..10u16 {
+                    v.push(Keycode(0x5260 | i));
+                }
+                // TO(0)..TO(9)
                 for i in 0..10u16 {
                     v.push(Keycode(0x5200 | i));
                 }
                 // DF(0)..DF(9)
                 for i in 0..10u16 {
-                    v.push(Keycode(0x5100 | i));
+                    v.push(Keycode(0x5240 | i));
                 }
                 // OSL(0)..OSL(9)
                 for i in 0..10u16 {
-                    v.push(Keycode(0x5300 | i));
+                    v.push(Keycode(0x5280 | i));
+                }
+                // TT(0)..TT(9)
+                for i in 0..10u16 {
+                    v.push(Keycode(0x52C0 | i));
                 }
                 v
             },
@@ -519,8 +735,8 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
                 Keycode(0x48),   // Pause
                 Keycode(0x65),   // App/Menu
                 Keycode(0x66),   // Power
-                Keycode(0x5700), // TL_LO (Tri-Layer Lower)
-                Keycode(0x5701), // TL_HI (Tri-Layer Upper)
+                Keycode(0x7C77), // TL_LO (Tri-Layer Lower)
+                Keycode(0x7C78), // TL_HI (Tri-Layer Upper)
             ],
         },
     ]
