@@ -130,21 +130,22 @@ impl ViarApp {
 
             // Tooltip with debug info
             if is_hovered {
-                egui::show_tooltip_at_pointer(
-                    ui.ctx(),
+                egui::Tooltip::always_open(
+                    ui.ctx().clone(),
                     ui.layer_id(),
                     ui.id().with(("key_tip", key_idx)),
-                    |ui| {
-                        ui.label(
-                            egui::RichText::new(format!(
-                                "{}\n0x{:04X}  matrix ({},{})",
-                                label, raw_kc, key_pos.row, key_pos.col
-                            ))
-                            .monospace()
-                            .size(12.0),
-                        );
-                    },
-                );
+                    egui::PopupAnchor::Pointer,
+                )
+                .show(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{}\n0x{:04X}  matrix ({},{})",
+                            label, raw_kc, key_pos.row, key_pos.col
+                        ))
+                        .monospace()
+                        .size(12.0),
+                    );
+                });
             }
         }
 
@@ -198,7 +199,7 @@ impl ViarApp {
 
             let popover_w = 420.0_f32;
             let popover_h = 260.0_f32;
-            let screen_rect = ui.ctx().screen_rect();
+            let screen_rect = ui.ctx().content_rect();
 
             let mut pop_x = key_rect.center().x - popover_w / 2.0;
             let mut pop_y = key_rect.max.y + 8.0;

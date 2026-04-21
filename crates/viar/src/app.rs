@@ -303,7 +303,7 @@ impl ViarApp {
 }
 
 impl eframe::App for ViarApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Expire status messages
         if let Some(ref s) = self.status {
             if s.is_expired() {
@@ -324,11 +324,15 @@ impl eframe::App for ViarApp {
             "Viar — Keyboard Configurator"
         };
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.to_string()));
+    }
 
-        self.render_menu_bar(ctx);
-        self.render_confirm_dialog(ctx);
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
 
-        egui::CentralPanel::default().show(ctx, |ui| match &self.screen {
+        self.render_menu_bar(ui);
+        self.render_confirm_dialog(&ctx);
+
+        egui::CentralPanel::default().show_inside(ui, |ui| match &self.screen {
             AppScreen::Detecting => self.render_detecting(ui),
             AppScreen::NoPermission(_) => self.render_no_permission(ui),
             AppScreen::NoKeyboards => self.render_no_keyboards(ui),

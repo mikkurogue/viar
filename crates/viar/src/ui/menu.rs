@@ -5,18 +5,19 @@ use crate::types::{AppScreen, ConfirmAction, ConfirmDialog, ViarApp};
 
 impl ViarApp {
     /// Render the top menu bar.
-    pub fn render_menu_bar(&mut self, ctx: &egui::Context) {
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
+    pub fn render_menu_bar(&mut self, ui: &mut egui::Ui) {
+        let ctx = ui.ctx().clone();
+        egui::Panel::top("menu_bar").show_inside(ui, |ui| {
+            egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("Viar", |ui| {
                     if ui.button("Refresh Devices").clicked() {
                         self.refresh();
-                        ui.close_menu();
+                        ui.close();
                     }
                     if self.connected_device.is_some() {
                         if ui.button("Disconnect").clicked() {
                             self.disconnect();
-                            ui.close_menu();
+                            ui.close();
                         }
                     }
                     ui.separator();
@@ -32,17 +33,17 @@ impl ViarApp {
                             self.protocol_version = None;
                             self.keymap_data = None;
                             self.screen = AppScreen::SelectKeyboard;
-                            ui.close_menu();
+                            ui.close();
                         }
                         ui.separator();
                         if ui.button("Reload Keymap").clicked() {
                             self.reload_keymap();
-                            ui.close_menu();
+                            ui.close();
                         }
                         ui.separator();
                         if ui.button("Export Keymap...").clicked() {
                             self.export_keymap();
-                            ui.close_menu();
+                            ui.close();
                         }
                         if ui.button("Import Keymap...").clicked() {
                             self.confirm_dialog = Some(ConfirmDialog {
@@ -50,16 +51,16 @@ impl ViarApp {
                                 message: "This will overwrite your current keymap with the contents of viar_keymap.json.\nAny unsaved changes will be lost.".to_string(),
                                 action: ConfirmAction::Import,
                             });
-                            ui.close_menu();
+                            ui.close();
                         }
                         ui.separator();
                         if ui.button("Lock Keyboard").clicked() {
                             debug!("lock keyboard (not yet implemented)");
-                            ui.close_menu();
+                            ui.close();
                         }
                         if ui.button("Unlock Keyboard").clicked() {
                             debug!("unlock keyboard (not yet implemented)");
-                            ui.close_menu();
+                            ui.close();
                         }
                     });
                 }

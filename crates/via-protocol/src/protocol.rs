@@ -6,7 +6,7 @@ use crate::{
     device::KeyboardDevice,
     ViaCommand, ViaError, ViaResult,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// High-level VIA protocol interface for a connected keyboard.
 pub struct ViaProtocol<'a> {
