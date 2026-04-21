@@ -17,6 +17,9 @@ Viar is a lightweight, Rust-native alternative to [VIA](https://usevia.app/) and
 - Vial keyboard definition parsing (KLE format, LZMA-compressed from firmware)
 - Graceful device disconnection handling
 
+## Showcase
+<img width="2548" height="1367" alt="image" src="https://github.com/user-attachments/assets/141ed36e-6954-4096-834f-ecde8d18f47e" />
+
 ## Project Structure
 
 ```
