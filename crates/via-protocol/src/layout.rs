@@ -254,7 +254,7 @@ fn parse_kle_keymap(keymap: &[Value]) -> Result<Vec<KeyPosition>, String> {
 
     // Current position state
     let mut cur_x: f32;
-    let mut cur_y: f32 = 0.0;
+    let mut cur_y: f32 = -1.0; // will be incremented to 0.0 on first row
 
     // Per-key properties (reset after each key)
     let mut next_w: f32 = 1.0;
@@ -268,18 +268,35 @@ fn parse_kle_keymap(keymap: &[Value]) -> Result<Vec<KeyPosition>, String> {
     for row_value in keymap {
         let row_arr = row_value.as_array().ok_or("keymap row is not an array")?;
 
-        // Each new row: advance Y by 1, reset X to 0 (or rx if rotated)
-        // But the first row starts at 0,0
-        // KLE convention: new row = x resets, y increments
-        // However, if rx/ry are set, x resets to rx and y to ry on rotation change
-
-        cur_x = cur_rx; // reset x to rotation origin at start of each row
-                        // y is incremented at the end of the previous row (handled below)
+        // KLE convention: each new row resets x and increments y by 1
+        cur_x = cur_rx;
+        cur_y += 1.0;
 
         for item in row_arr {
             match item {
                 Value::Object(props) => {
                     // Properties object — sets state for next key(s)
+
+                    // Rotation properties: when r, rx, or ry change,
+                    // position resets to (rx, ry).
+                    let mut rotation_changed = false;
+                    if let Some(r) = props.get("r").and_then(|v| v.as_f64()) {
+                        cur_r = r as f32;
+                        rotation_changed = true;
+                    }
+                    if let Some(rx) = props.get("rx").and_then(|v| v.as_f64()) {
+                        cur_rx = rx as f32;
+                        rotation_changed = true;
+                    }
+                    if let Some(ry) = props.get("ry").and_then(|v| v.as_f64()) {
+                        cur_ry = ry as f32;
+                        rotation_changed = true;
+                    }
+                    if rotation_changed {
+                        cur_x = cur_rx;
+                        cur_y = cur_ry;
+                    }
+
                     if let Some(x) = props.get("x").and_then(|v| v.as_f64()) {
                         cur_x += x as f32;
                     }
@@ -292,28 +309,31 @@ fn parse_kle_keymap(keymap: &[Value]) -> Result<Vec<KeyPosition>, String> {
                     if let Some(h) = props.get("h").and_then(|v| v.as_f64()) {
                         next_h = h as f32;
                     }
-                    if let Some(r) = props.get("r").and_then(|v| v.as_f64()) {
-                        cur_r = r as f32;
-                    }
-                    if let Some(rx) = props.get("rx").and_then(|v| v.as_f64()) {
-                        cur_rx = rx as f32;
-                        cur_x = cur_rx; // reset x when rx changes
-                    }
-                    if let Some(ry) = props.get("ry").and_then(|v| v.as_f64()) {
-                        cur_ry = ry as f32;
-                        cur_y = cur_ry; // reset y when ry changes
-                    }
                 }
                 Value::String(legend) => {
                     // Key — first legend line is "row,col" or could be a label
                     // Vial uses "row,col\n..." format
                     // Encoders use "row,col\n\n\n\n\n\n\n\n\ne" format (line 10 = "e")
+                    // Layout options use "row,col\n\n\nopt,choice" format (line 4)
                     let is_encoder = legend.lines().any(|line| line.trim() == "e");
-                    let first_line = legend.lines().next().unwrap_or("");
+                    let lines: Vec<&str> = legend.lines().collect();
+                    let first_line = lines.first().copied().unwrap_or("");
 
-                    if is_encoder {
-                        // Encoder — skip, don't add to layout keys
-                        debug!(legend = %legend, x = cur_x, y = cur_y, "skipping encoder key");
+                    // Check layout option (4th legend line, 0-indexed line 3)
+                    // If present, only keep choice 0 (default)
+                    let layout_option_line = lines.get(3).copied().unwrap_or("");
+                    let is_non_default_option = if !layout_option_line.is_empty() {
+                        // Format: "option_idx,choice_idx" — keep only choice 0
+                        layout_option_line
+                            .split_once(',')
+                            .map(|(_, choice)| choice != "0")
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    };
+
+                    if is_encoder || is_non_default_option {
+                        debug!(legend = %legend, x = cur_x, y = cur_y, "skipping encoder/non-default key");
                     } else if let Some((matrix_row, matrix_col)) = parse_matrix_pos(first_line) {
                         let mut key = KeyPosition::new(cur_x, cur_y, matrix_row, matrix_col)
                             .with_size(next_w, next_h)
@@ -326,11 +346,18 @@ fn parse_kle_keymap(keymap: &[Value]) -> Result<Vec<KeyPosition>, String> {
                             let angle = cur_r.to_radians();
                             let cos_a = angle.cos();
                             let sin_a = angle.sin();
-                            // Rotate the key's top-left corner around (rx, ry)
-                            let dx = cur_x - cur_rx;
-                            let dy = cur_y - cur_ry;
-                            key.x = cur_rx + dx * cos_a - dy * sin_a;
-                            key.y = cur_ry + dx * sin_a + dy * cos_a;
+                            // Rotate the key's center around (rx, ry), then
+                            // position the axis-aligned rect so its center
+                            // matches the rotated center. This gives better
+                            // visual alignment than rotating the top-left corner.
+                            let center_x = cur_x + next_w / 2.0;
+                            let center_y = cur_y + next_h / 2.0;
+                            let dx = center_x - cur_rx;
+                            let dy = center_y - cur_ry;
+                            let rot_cx = cur_rx + dx * cos_a - dy * sin_a;
+                            let rot_cy = cur_ry + dx * sin_a + dy * cos_a;
+                            key.x = rot_cx - next_w / 2.0;
+                            key.y = rot_cy - next_h / 2.0;
                         }
 
                         keys.push(key);
@@ -352,9 +379,6 @@ fn parse_kle_keymap(keymap: &[Value]) -> Result<Vec<KeyPosition>, String> {
                 }
             }
         }
-
-        // End of row: advance y
-        cur_y += 1.0;
     }
 
     Ok(keys)

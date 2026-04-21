@@ -2,7 +2,7 @@
 
 A native desktop keyboard configurator for QMK keyboards with VIA/Vial support, written in Rust.
 
-Viar is a lightweight alternative to the Electron-based [VIA](https://usevia.app/) and [Vial](https://get.vial.today/) configurators. It communicates with keyboards over USB HID to remap keys and control RGB lighting in real time.
+Viar is a lightweight, Rust-native alternative to [VIA](https://usevia.app/) and [Vial](https://get.vial.today/). It communicates with keyboards over USB HID to remap keys and control RGB lighting in real time.
 
 ## Features
 
