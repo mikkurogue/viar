@@ -13,6 +13,9 @@ pub enum AppScreen {
 pub enum ConnectedTab {
     Keymap,
     Lighting,
+    TapDance,
+    Combos,
+    KeyOverrides,
 }
 
 /// Status message shown temporarily after an action.

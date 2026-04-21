@@ -24,6 +24,7 @@ impl ViarApp {
             confirm_dialog: None,
             active_tab: ConnectedTab::Keymap,
             lighting_data: None,
+            dynamic_data: None,
         };
         app.detect();
         app
@@ -228,6 +229,48 @@ impl ViarApp {
             }
         }
 
+        // Try to load dynamic entries (tap dance, combos, key overrides)
+        self.dynamic_data = None;
+        if let Some(dev) = &self.connected_device {
+            let proto = ViaProtocol::new(dev);
+            match proto.get_dynamic_entry_counts() {
+                Ok(counts) => {
+                    info!(
+                        td = counts.tap_dance,
+                        combo = counts.combo,
+                        ko = counts.key_override,
+                        "loading dynamic entries"
+                    );
+                    let tap_dances =
+                        proto
+                            .get_all_tap_dances(counts.tap_dance)
+                            .unwrap_or_else(|e| {
+                                warn!(error = %e, "failed to load tap dances");
+                                Vec::new()
+                            });
+                    let combos = proto.get_all_combos(counts.combo).unwrap_or_else(|e| {
+                        warn!(error = %e, "failed to load combos");
+                        Vec::new()
+                    });
+                    let key_overrides = proto
+                        .get_all_key_overrides(counts.key_override)
+                        .unwrap_or_else(|e| {
+                            warn!(error = %e, "failed to load key overrides");
+                            Vec::new()
+                        });
+                    self.dynamic_data = Some(crate::types::DynamicEntryData::new(
+                        counts,
+                        tap_dances,
+                        combos,
+                        key_overrides,
+                    ));
+                }
+                Err(e) => {
+                    debug!(error = %e, "dynamic entries not supported by this keyboard");
+                }
+            }
+        }
+
         self.screen = AppScreen::Connected;
     }
 
@@ -238,6 +281,7 @@ impl ViarApp {
             self.protocol_version = None;
             self.keymap_data = None;
             self.lighting_data = None;
+            self.dynamic_data = None;
             self.active_tab = ConnectedTab::Keymap;
             self.refresh();
         }
@@ -248,6 +292,7 @@ impl ViarApp {
         self.connected_device = None;
         self.protocol_version = None;
         self.lighting_data = None;
+        self.dynamic_data = None;
         self.active_tab = ConnectedTab::Keymap;
         self.screen = AppScreen::NoKeyboards;
         self.set_status(StatusMessage::error(

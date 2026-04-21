@@ -4,7 +4,7 @@ use crate::types::{ConnectedTab, ViarApp};
 
 impl ViarApp {
     pub fn render_connected(&mut self, ui: &mut egui::Ui) {
-        // Top tab bar: Keymap | Lighting
+        // Top tab bar
         ui.horizontal(|ui| {
             ui.add_space(8.0);
             if ui
@@ -19,6 +19,29 @@ impl ViarApp {
                     .clicked()
                 {
                     self.active_tab = ConnectedTab::Lighting;
+                }
+            }
+            if self.dynamic_data.is_some() {
+                if ui
+                    .selectable_label(self.active_tab == ConnectedTab::TapDance, "Tap Dance")
+                    .clicked()
+                {
+                    self.active_tab = ConnectedTab::TapDance;
+                }
+                if ui
+                    .selectable_label(self.active_tab == ConnectedTab::Combos, "Combos")
+                    .clicked()
+                {
+                    self.active_tab = ConnectedTab::Combos;
+                }
+                if ui
+                    .selectable_label(
+                        self.active_tab == ConnectedTab::KeyOverrides,
+                        "Key Overrides",
+                    )
+                    .clicked()
+                {
+                    self.active_tab = ConnectedTab::KeyOverrides;
                 }
             }
 
@@ -38,6 +61,9 @@ impl ViarApp {
         match self.active_tab {
             ConnectedTab::Keymap => self.render_keymap_tab(ui),
             ConnectedTab::Lighting => self.render_lighting_tab(ui),
+            ConnectedTab::TapDance => self.render_tap_dance_tab(ui),
+            ConnectedTab::Combos => self.render_combos_tab(ui),
+            ConnectedTab::KeyOverrides => self.render_key_overrides_tab(ui),
         }
     }
 }

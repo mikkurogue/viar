@@ -1,5 +1,8 @@
 use crate::{
-    command::{LightingChannel, LightingProtocol, RgbValueId, VialRgbValueId},
+    command::{
+        ComboEntry, DynamicEntryCounts, KeyOverrideEntry, LightingChannel, LightingProtocol,
+        RgbValueId, TapDanceEntry, VialRgbValueId,
+    },
     device::KeyboardDevice,
     ViaCommand, ViaError, ViaResult,
 };
@@ -216,6 +219,117 @@ impl<'a> ViaProtocol<'a> {
         debug!(json = %json, "vial definition JSON");
 
         Ok(json)
+    }
+
+    // ========================================================================
+    // Vial Dynamic Entries (Tap Dance, Combos, Key Overrides)
+    // ========================================================================
+
+    /// Get the counts of dynamic entries supported by the keyboard.
+    pub fn get_dynamic_entry_counts(&self) -> ViaResult<DynamicEntryCounts> {
+        let resp = self
+            .device
+            .send_command(&ViaCommand::vial_get_dynamic_entry_count())?;
+        // Response: firmware overwrites buffer starting at 0
+        // [td_count, combo_count, ko_count, arep_count, ...]
+        let counts = DynamicEntryCounts {
+            tap_dance: resp[0],
+            combo: resp[1],
+            key_override: resp[2],
+            alt_repeat: resp[3],
+        };
+        info!(
+            tap_dance = counts.tap_dance,
+            combo = counts.combo,
+            key_override = counts.key_override,
+            alt_repeat = counts.alt_repeat,
+            "dynamic entry counts"
+        );
+        Ok(counts)
+    }
+
+    /// Get a tap dance entry by index.
+    pub fn get_tap_dance(&self, idx: u8) -> ViaResult<TapDanceEntry> {
+        let resp = self
+            .device
+            .send_command(&ViaCommand::vial_tap_dance_get(idx))?;
+        // Response: [status, <10 bytes struct>]
+        // Vial firmware writes status at msg[0], struct at msg[1..11]
+        let entry = TapDanceEntry::from_bytes(&resp[1..11]);
+        debug!(idx, ?entry, "get_tap_dance");
+        Ok(entry)
+    }
+
+    /// Set a tap dance entry by index.
+    pub fn set_tap_dance(&self, idx: u8, entry: &TapDanceEntry) -> ViaResult<()> {
+        let data = entry.to_bytes();
+        self.device
+            .send_command(&ViaCommand::vial_tap_dance_set(idx, &data))?;
+        debug!(idx, ?entry, "set_tap_dance");
+        Ok(())
+    }
+
+    /// Get all tap dance entries.
+    pub fn get_all_tap_dances(&self, count: u8) -> ViaResult<Vec<TapDanceEntry>> {
+        let mut entries = Vec::with_capacity(count as usize);
+        for i in 0..count {
+            entries.push(self.get_tap_dance(i)?);
+        }
+        Ok(entries)
+    }
+
+    /// Get a combo entry by index.
+    pub fn get_combo(&self, idx: u8) -> ViaResult<ComboEntry> {
+        let resp = self.device.send_command(&ViaCommand::vial_combo_get(idx))?;
+        let entry = ComboEntry::from_bytes(&resp[1..11]);
+        debug!(idx, ?entry, "get_combo");
+        Ok(entry)
+    }
+
+    /// Set a combo entry by index.
+    pub fn set_combo(&self, idx: u8, entry: &ComboEntry) -> ViaResult<()> {
+        let data = entry.to_bytes();
+        self.device
+            .send_command(&ViaCommand::vial_combo_set(idx, &data))?;
+        debug!(idx, ?entry, "set_combo");
+        Ok(())
+    }
+
+    /// Get all combo entries.
+    pub fn get_all_combos(&self, count: u8) -> ViaResult<Vec<ComboEntry>> {
+        let mut entries = Vec::with_capacity(count as usize);
+        for i in 0..count {
+            entries.push(self.get_combo(i)?);
+        }
+        Ok(entries)
+    }
+
+    /// Get a key override entry by index.
+    pub fn get_key_override(&self, idx: u8) -> ViaResult<KeyOverrideEntry> {
+        let resp = self
+            .device
+            .send_command(&ViaCommand::vial_key_override_get(idx))?;
+        let entry = KeyOverrideEntry::from_bytes(&resp[1..11]);
+        debug!(idx, ?entry, "get_key_override");
+        Ok(entry)
+    }
+
+    /// Set a key override entry by index.
+    pub fn set_key_override(&self, idx: u8, entry: &KeyOverrideEntry) -> ViaResult<()> {
+        let data = entry.to_bytes();
+        self.device
+            .send_command(&ViaCommand::vial_key_override_set(idx, &data))?;
+        debug!(idx, ?entry, "set_key_override");
+        Ok(())
+    }
+
+    /// Get all key override entries.
+    pub fn get_all_key_overrides(&self, count: u8) -> ViaResult<Vec<KeyOverrideEntry>> {
+        let mut entries = Vec::with_capacity(count as usize);
+        for i in 0..count {
+            entries.push(self.get_key_override(i)?);
+        }
+        Ok(entries)
     }
 
     // ========================================================================

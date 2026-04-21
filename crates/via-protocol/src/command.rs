@@ -89,6 +89,143 @@ pub enum LightingProtocol {
     VialRgb,
 }
 
+// ========================================================================
+// Vial Dynamic Entry types
+// ========================================================================
+
+/// Tap Dance entry (10 bytes, matches firmware struct layout).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TapDanceEntry {
+    pub on_tap: u16,
+    pub on_hold: u16,
+    pub on_double_tap: u16,
+    pub on_tap_hold: u16,
+    pub tapping_term: u16,
+}
+
+impl TapDanceEntry {
+    pub fn from_bytes(data: &[u8]) -> Self {
+        Self {
+            on_tap: u16::from_le_bytes([data[0], data[1]]),
+            on_hold: u16::from_le_bytes([data[2], data[3]]),
+            on_double_tap: u16::from_le_bytes([data[4], data[5]]),
+            on_tap_hold: u16::from_le_bytes([data[6], data[7]]),
+            tapping_term: u16::from_le_bytes([data[8], data[9]]),
+        }
+    }
+
+    pub fn to_bytes(&self) -> [u8; 10] {
+        let mut buf = [0u8; 10];
+        buf[0..2].copy_from_slice(&self.on_tap.to_le_bytes());
+        buf[2..4].copy_from_slice(&self.on_hold.to_le_bytes());
+        buf[4..6].copy_from_slice(&self.on_double_tap.to_le_bytes());
+        buf[6..8].copy_from_slice(&self.on_tap_hold.to_le_bytes());
+        buf[8..10].copy_from_slice(&self.tapping_term.to_le_bytes());
+        buf
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.on_tap == 0 && self.on_hold == 0 && self.on_double_tap == 0 && self.on_tap_hold == 0
+    }
+}
+
+/// Combo entry (10 bytes, matches firmware struct layout).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ComboEntry {
+    pub input: [u16; 4],
+    pub output: u16,
+}
+
+impl ComboEntry {
+    pub fn from_bytes(data: &[u8]) -> Self {
+        Self {
+            input: [
+                u16::from_le_bytes([data[0], data[1]]),
+                u16::from_le_bytes([data[2], data[3]]),
+                u16::from_le_bytes([data[4], data[5]]),
+                u16::from_le_bytes([data[6], data[7]]),
+            ],
+            output: u16::from_le_bytes([data[8], data[9]]),
+        }
+    }
+
+    pub fn to_bytes(&self) -> [u8; 10] {
+        let mut buf = [0u8; 10];
+        for (i, kc) in self.input.iter().enumerate() {
+            buf[i * 2..i * 2 + 2].copy_from_slice(&kc.to_le_bytes());
+        }
+        buf[8..10].copy_from_slice(&self.output.to_le_bytes());
+        buf
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.input.iter().all(|&k| k == 0) && self.output == 0
+    }
+}
+
+/// Key Override entry (10 bytes, matches firmware struct layout).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct KeyOverrideEntry {
+    pub trigger: u16,
+    pub replacement: u16,
+    pub layers: u16,
+    pub trigger_mods: u8,
+    pub negative_mod_mask: u8,
+    pub suppressed_mods: u8,
+    pub options: u8, // bit 7 = enabled
+}
+
+impl KeyOverrideEntry {
+    pub fn from_bytes(data: &[u8]) -> Self {
+        Self {
+            trigger: u16::from_le_bytes([data[0], data[1]]),
+            replacement: u16::from_le_bytes([data[2], data[3]]),
+            layers: u16::from_le_bytes([data[4], data[5]]),
+            trigger_mods: data[6],
+            negative_mod_mask: data[7],
+            suppressed_mods: data[8],
+            options: data[9],
+        }
+    }
+
+    pub fn to_bytes(&self) -> [u8; 10] {
+        let mut buf = [0u8; 10];
+        buf[0..2].copy_from_slice(&self.trigger.to_le_bytes());
+        buf[2..4].copy_from_slice(&self.replacement.to_le_bytes());
+        buf[4..6].copy_from_slice(&self.layers.to_le_bytes());
+        buf[6] = self.trigger_mods;
+        buf[7] = self.negative_mod_mask;
+        buf[8] = self.suppressed_mods;
+        buf[9] = self.options;
+        buf
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.options & 0x80 != 0
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        if enabled {
+            self.options |= 0x80;
+        } else {
+            self.options &= !0x80;
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.trigger == 0 && self.replacement == 0
+    }
+}
+
+/// Dynamic entry counts returned by the keyboard.
+#[derive(Debug, Clone, Default)]
+pub struct DynamicEntryCounts {
+    pub tap_dance: u8,
+    pub combo: u8,
+    pub key_override: u8,
+    pub alt_repeat: u8,
+}
+
 /// VialRGB sub-command IDs (used as data[1] with CustomGetValue/CustomSetValue).
 /// Note: GET and SET share the same sub-command IDs (0x41, 0x42) but the
 /// parent command (CustomGetValue vs CustomSetValue) differentiates them.
@@ -412,6 +549,51 @@ impl ViaCommand {
             ViaCommandId::VialPrefix,
             &[0x02, (page & 0xFF) as u8, (page >> 8) as u8],
         )
+    }
+
+    /// Vial: get dynamic entry counts (tap dance, combos, key overrides, alt repeat keys).
+    /// Response: [td_count, combo_count, ko_count, arep_count, ..., feature_flags]
+    pub fn vial_get_dynamic_entry_count() -> Self {
+        Self::with_data(ViaCommandId::VialPrefix, &[0x0D, 0x00])
+    }
+
+    /// Vial: get tap dance entry at index.
+    /// Response: [status, <10 bytes: on_tap(u16 LE), on_hold(u16 LE), on_double_tap(u16 LE), on_tap_hold(u16 LE), tapping_term(u16 LE)>]
+    pub fn vial_tap_dance_get(idx: u8) -> Self {
+        Self::with_data(ViaCommandId::VialPrefix, &[0x0D, 0x01, idx])
+    }
+
+    /// Vial: set tap dance entry at index. Payload is 10 bytes (raw struct).
+    pub fn vial_tap_dance_set(idx: u8, data: &[u8; 10]) -> Self {
+        let mut payload = vec![0x0D, 0x02, idx];
+        payload.extend_from_slice(data);
+        Self::with_data(ViaCommandId::VialPrefix, &payload)
+    }
+
+    /// Vial: get combo entry at index.
+    /// Response: [status, <10 bytes: input0..3(u16 LE x4), output(u16 LE)>]
+    pub fn vial_combo_get(idx: u8) -> Self {
+        Self::with_data(ViaCommandId::VialPrefix, &[0x0D, 0x03, idx])
+    }
+
+    /// Vial: set combo entry at index. Payload is 10 bytes (raw struct).
+    pub fn vial_combo_set(idx: u8, data: &[u8; 10]) -> Self {
+        let mut payload = vec![0x0D, 0x04, idx];
+        payload.extend_from_slice(data);
+        Self::with_data(ViaCommandId::VialPrefix, &payload)
+    }
+
+    /// Vial: get key override entry at index.
+    /// Response: [status, <10 bytes: trigger(u16 LE), replacement(u16 LE), layers(u16 LE), trigger_mods, negative_mod_mask, suppressed_mods, options>]
+    pub fn vial_key_override_get(idx: u8) -> Self {
+        Self::with_data(ViaCommandId::VialPrefix, &[0x0D, 0x05, idx])
+    }
+
+    /// Vial: set key override entry at index. Payload is 10 bytes (raw struct).
+    pub fn vial_key_override_set(idx: u8, data: &[u8; 10]) -> Self {
+        let mut payload = vec![0x0D, 0x06, idx];
+        payload.extend_from_slice(data);
+        Self::with_data(ViaCommandId::VialPrefix, &payload)
     }
 
     /// VialRGB: get supported effects. Pass gt=0 first, then gt=last_id to paginate.

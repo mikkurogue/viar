@@ -170,6 +170,61 @@ let layout = parse_vial_definition(&definition).unwrap();
 
 The definition is fetched in chunks and LZMA-decompressed automatically.
 
+### Dynamic Entries (Tap Dance, Combos, Key Overrides)
+
+Vial firmware supports dynamic configuration of tap dances, combos, and key overrides. Each entry type is a fixed 10-byte struct stored in EEPROM.
+
+```rust
+use via_protocol::{TapDanceEntry, ComboEntry, KeyOverrideEntry};
+
+// Query how many slots the keyboard supports
+let counts = proto.get_dynamic_entry_counts().unwrap();
+println!("TD: {}, Combos: {}, KO: {}", counts.tap_dance, counts.combo, counts.key_override);
+
+// Read a tap dance entry
+let td = proto.get_tap_dance(0).unwrap();
+println!("On tap: 0x{:04X}, On hold: 0x{:04X}, term: {}ms",
+    td.on_tap, td.on_hold, td.tapping_term);
+
+// Write a tap dance entry
+let td = TapDanceEntry {
+    on_tap: 0x0004,      // KC_A
+    on_hold: 0x00E0,     // KC_LCTL
+    on_double_tap: 0x0005, // KC_B
+    on_tap_hold: 0x0000,
+    tapping_term: 200,
+};
+proto.set_tap_dance(0, &td).unwrap();
+
+// Read/write combos
+let combo = proto.get_combo(0).unwrap();
+let combo = ComboEntry {
+    input: [0x0004, 0x0005, 0, 0], // A + B
+    output: 0x001B,                 // KC_ESC -> output Escape
+};
+proto.set_combo(0, &combo).unwrap();
+
+// Read/write key overrides
+let ko = proto.get_key_override(0).unwrap();
+let ko = KeyOverrideEntry {
+    trigger: 0x0004,      // KC_A
+    replacement: 0x0005,  // KC_B
+    layers: 0xFFFF,       // all layers
+    trigger_mods: 0x02,   // LShift
+    negative_mod_mask: 0,
+    suppressed_mods: 0x02,
+    options: 0x80,        // bit 7 = enabled
+};
+proto.set_key_override(0, &ko).unwrap();
+
+// Bulk read all entries
+let all_td = proto.get_all_tap_dances(counts.tap_dance).unwrap();
+let all_combos = proto.get_all_combos(counts.combo).unwrap();
+let all_ko = proto.get_all_key_overrides(counts.key_override).unwrap();
+```
+
+All dynamic entry operations go through the Vial prefix (`0xFE`) with sub-command `0x0D`. Data is serialized as raw little-endian structs matching the firmware's C layout.
+
 ## Protocol Details
 
 All communication uses 32-byte HID reports (`VIA_REPORT_SIZE`). The first byte is the command ID. The library handles padding, chunked reads, and response parsing.

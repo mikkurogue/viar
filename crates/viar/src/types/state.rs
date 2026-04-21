@@ -1,6 +1,9 @@
 use via_protocol::{KeyboardDevice, KeyboardInfo, KeycodeGroup};
 
-use super::{AppScreen, ConfirmDialog, ConnectedTab, KeymapData, LightingData, StatusMessage};
+use super::{
+    AppScreen, ConfirmDialog, ConnectedTab, DynamicEntryData, KeymapData, LightingData,
+    StatusMessage,
+};
 
 /// The main application state.
 pub struct ViarApp {
@@ -21,4 +24,6 @@ pub struct ViarApp {
     pub active_tab: ConnectedTab,
     /// Lighting state
     pub lighting_data: Option<LightingData>,
+    /// Dynamic entries (tap dance, combos, key overrides)
+    pub dynamic_data: Option<DynamicEntryData>,
 }

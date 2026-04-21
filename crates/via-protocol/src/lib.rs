@@ -11,8 +11,8 @@ pub mod layout;
 mod protocol;
 
 pub use command::{
-    LightingChannel, LightingProtocol, RgbValueId, ViaCommand, ViaCommandId, VialRgbEffect,
-    VialRgbValueId,
+    ComboEntry, DynamicEntryCounts, KeyOverrideEntry, LightingChannel, LightingProtocol,
+    RgbValueId, TapDanceEntry, ViaCommand, ViaCommandId, VialRgbEffect, VialRgbValueId,
 };
 pub use device::{HidAccessStatus, KeyboardDevice, KeyboardInfo};
 pub use error::{ViaError, ViaResult};
