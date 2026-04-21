@@ -5,7 +5,7 @@ use via_protocol::{
     keycode_groups,
     layout::{find_layout, generic_layout},
     HidAccessStatus, KeyboardDevice, KeyboardInfo, KeyboardLayout, Keycode, KeycodeGroup,
-    LightingChannel, ViaProtocol,
+    LightingProtocol, ViaProtocol,
 };
 
 fn main() -> eframe::Result<()> {
@@ -103,12 +103,14 @@ struct KeymapData {
 
 /// Lighting state loaded from the device.
 struct LightingData {
-    channel: LightingChannel,
+    protocol: LightingProtocol,
     brightness: u8,
-    effect: u8,
+    effect_id: u16,
     speed: u8,
     hue: u8,
     saturation: u8,
+    /// Supported VialRGB effect IDs (empty for non-VialRGB protocols)
+    supported_effects: Vec<u16>,
     /// Whether lighting values have been modified since last save
     dirty: bool,
 }
@@ -325,24 +327,43 @@ impl ViarApp {
         self.lighting_data = None;
         if let Some(dev) = &self.connected_device {
             let proto = ViaProtocol::new(dev);
-            if let Some(channel) = proto.detect_lighting_channel() {
-                let brightness = proto.get_rgb_brightness(channel).unwrap_or(0);
-                let effect = proto.get_rgb_effect(channel).unwrap_or(0);
-                let speed = proto.get_rgb_speed(channel).unwrap_or(0);
-                let (hue, sat) = proto.get_rgb_color(channel).unwrap_or((0, 0));
-                info!(
-                    ?channel,
-                    brightness, effect, speed, hue, sat, "lighting loaded from device"
-                );
-                self.lighting_data = Some(LightingData {
-                    channel,
-                    brightness,
-                    effect,
-                    speed,
-                    hue,
-                    saturation: sat,
-                    dirty: false,
-                });
+            if let Some(lighting_proto) = proto.detect_lighting_protocol() {
+                info!(?lighting_proto, "detected lighting protocol");
+                match proto.read_lighting_values(&lighting_proto) {
+                    Ok(vals) => {
+                        info!(
+                            brightness = vals.brightness,
+                            effect_id = vals.effect_id,
+                            speed = vals.speed,
+                            hue = vals.hue,
+                            sat = vals.saturation,
+                            "lighting values loaded"
+                        );
+                        // For VialRGB, fetch supported effects
+                        let supported_effects =
+                            if matches!(lighting_proto, LightingProtocol::VialRgb) {
+                                proto.vialrgb_get_supported_effects().unwrap_or_default()
+                            } else {
+                                Vec::new()
+                            };
+                        if !supported_effects.is_empty() {
+                            info!(count = supported_effects.len(), effects = ?supported_effects, "supported VialRGB effects");
+                        }
+                        self.lighting_data = Some(LightingData {
+                            protocol: lighting_proto,
+                            brightness: vals.brightness,
+                            effect_id: vals.effect_id,
+                            speed: vals.speed,
+                            hue: vals.hue,
+                            saturation: vals.saturation,
+                            supported_effects,
+                            dirty: false,
+                        });
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "failed to read lighting values");
+                    }
+                }
             }
         }
 
@@ -1303,11 +1324,21 @@ impl ViarApp {
             return;
         };
 
-        let channel_name = match lighting.channel {
-            LightingChannel::QmkRgblight => "QMK Rgblight",
-            LightingChannel::QmkRgbMatrix => "QMK RGB Matrix",
-            LightingChannel::QmkLed => "QMK LED",
+        let protocol_name = match &lighting.protocol {
+            LightingProtocol::Via { channel } => {
+                use via_protocol::LightingChannel;
+                match channel {
+                    LightingChannel::QmkBacklight => "QMK Backlight (VIA)",
+                    LightingChannel::QmkRgblight => "QMK Rgblight (VIA)",
+                    LightingChannel::QmkRgbMatrix => "QMK RGB Matrix (VIA)",
+                    LightingChannel::QmkAudio => "QMK Audio (VIA)",
+                    LightingChannel::QmkLedMatrix => "QMK LED Matrix (VIA)",
+                }
+            }
+            LightingProtocol::VialLegacy => "RGB Matrix (Vial Legacy)",
+            LightingProtocol::VialRgb => "RGB Matrix (VialRGB)",
         };
+        let is_vial = matches!(lighting.protocol, LightingProtocol::VialRgb);
 
         ui.add_space(20.0);
 
@@ -1319,7 +1350,7 @@ impl ViarApp {
             ui.heading("Lighting Configuration");
             ui.add_space(4.0);
             ui.label(
-                egui::RichText::new(channel_name)
+                egui::RichText::new(protocol_name)
                     .size(12.0)
                     .color(egui::Color32::from_rgb(140, 140, 155)),
             );
@@ -1340,20 +1371,47 @@ impl ViarApp {
             });
             ui.add_space(8.0);
 
-            // Effect slider
-            ui.horizontal(|ui| {
-                ui.label("Effect");
-                ui.add_space(8.0);
-                let mut val = lighting.effect as f32;
-                // rgb_matrix has ~45 effects typically, but cap at 255
-                if ui
-                    .add(egui::Slider::new(&mut val, 0.0..=48.0).integer())
-                    .changed()
-                {
-                    lighting.effect = val as u8;
-                    lighting.dirty = true;
-                }
-            });
+            // Effect selector — dropdown for VialRGB, slider for others
+            if is_vial && !lighting.supported_effects.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.label("Effect");
+                    ui.add_space(8.0);
+                    let current_name = via_protocol::VialRgbEffect::from_u16(lighting.effect_id)
+                        .map(|e| e.name())
+                        .unwrap_or("Unknown");
+                    egui::ComboBox::from_id_salt("effect_combo")
+                        .selected_text(current_name)
+                        .width(280.0)
+                        .show_ui(ui, |ui| {
+                            for &eid in &lighting.supported_effects {
+                                let name = via_protocol::VialRgbEffect::from_u16(eid)
+                                    .map(|e| e.name())
+                                    .unwrap_or("Unknown");
+                                let label = format!("{name} ({eid})");
+                                if ui
+                                    .selectable_label(lighting.effect_id == eid, &label)
+                                    .clicked()
+                                {
+                                    lighting.effect_id = eid;
+                                    lighting.dirty = true;
+                                }
+                            }
+                        });
+                });
+            } else {
+                ui.horizontal(|ui| {
+                    ui.label("Effect");
+                    ui.add_space(8.0);
+                    let mut val = lighting.effect_id as f32;
+                    if ui
+                        .add(egui::Slider::new(&mut val, 0.0..=48.0).integer())
+                        .changed()
+                    {
+                        lighting.effect_id = val as u16;
+                        lighting.dirty = true;
+                    }
+                });
+            }
             ui.add_space(8.0);
 
             // Speed slider
@@ -1488,48 +1546,44 @@ impl ViarApp {
             return;
         };
         let proto = ViaProtocol::new(dev);
-        let channel = lighting.channel;
-        let mut errors = Vec::new();
+        let lp = lighting.protocol;
+        let vals = via_protocol::LightingValues {
+            effect_id: lighting.effect_id,
+            brightness: lighting.brightness,
+            speed: lighting.speed,
+            hue: lighting.hue,
+            saturation: lighting.saturation,
+        };
 
-        if let Err(e) = proto.set_rgb_brightness(channel, lighting.brightness) {
-            errors.push(format!("brightness: {e}"));
-        }
-        if let Err(e) = proto.set_rgb_effect(channel, lighting.effect) {
-            errors.push(format!("effect: {e}"));
-        }
-        if let Err(e) = proto.set_rgb_speed(channel, lighting.speed) {
-            errors.push(format!("speed: {e}"));
-        }
-        if let Err(e) = proto.set_rgb_color(channel, lighting.hue, lighting.saturation) {
-            errors.push(format!("color: {e}"));
-        }
-
-        if errors.is_empty() {
-            info!("lighting values applied to device");
-            if let Some(l) = &mut self.lighting_data {
-                l.dirty = false;
+        match proto.write_lighting_values(&lp, &vals) {
+            Ok(()) => {
+                info!("lighting values applied to device");
+                if let Some(l) = &mut self.lighting_data {
+                    l.dirty = false;
+                }
+                self.set_status(StatusMessage::info("Lighting applied"));
             }
-            self.set_status(StatusMessage::info("Lighting applied"));
-        } else {
-            let msg = format!("Lighting errors: {}", errors.join(", "));
-            warn!("{msg}");
-            self.set_status(StatusMessage::error(msg));
-            // Check for disconnect
-            for e in &errors {
-                if is_disconnect_error(e) {
+            Err(e) => {
+                let err_str = format!("{e}");
+                warn!(error = %e, "failed to apply lighting");
+                self.set_status(StatusMessage::error(format!("Lighting error: {e}")));
+                if is_disconnect_error(&err_str) {
                     self.handle_disconnect();
-                    return;
                 }
             }
         }
     }
 
     fn save_lighting(&mut self) {
+        let Some(lighting) = &self.lighting_data else {
+            return;
+        };
+        let lp = lighting.protocol;
         let Some(dev) = &self.connected_device else {
             return;
         };
         let proto = ViaProtocol::new(dev);
-        match proto.custom_save() {
+        match proto.save_lighting(&lp) {
             Ok(()) => {
                 info!("lighting saved to EEPROM");
                 self.set_status(StatusMessage::info("Lighting saved to EEPROM"));
@@ -1552,24 +1606,38 @@ impl ViarApp {
         let Some(lighting) = &self.lighting_data else {
             return;
         };
-        let channel = lighting.channel;
+        let lp = lighting.protocol;
         let proto = ViaProtocol::new(dev);
 
-        let brightness = proto.get_rgb_brightness(channel).unwrap_or(0);
-        let effect = proto.get_rgb_effect(channel).unwrap_or(0);
-        let speed = proto.get_rgb_speed(channel).unwrap_or(0);
-        let (hue, sat) = proto.get_rgb_color(channel).unwrap_or((0, 0));
-
-        if let Some(l) = &mut self.lighting_data {
-            l.brightness = brightness;
-            l.effect = effect;
-            l.speed = speed;
-            l.hue = hue;
-            l.saturation = sat;
-            l.dirty = false;
+        match proto.read_lighting_values(&lp) {
+            Ok(vals) => {
+                if let Some(l) = &mut self.lighting_data {
+                    l.brightness = vals.brightness;
+                    l.effect_id = vals.effect_id;
+                    l.speed = vals.speed;
+                    l.hue = vals.hue;
+                    l.saturation = vals.saturation;
+                    l.dirty = false;
+                }
+                info!(
+                    brightness = vals.brightness,
+                    effect_id = vals.effect_id,
+                    speed = vals.speed,
+                    hue = vals.hue,
+                    sat = vals.saturation,
+                    "lighting reloaded"
+                );
+                self.set_status(StatusMessage::info("Lighting reloaded from device"));
+            }
+            Err(e) => {
+                let err_str = format!("{e}");
+                warn!(error = %e, "failed to reload lighting");
+                self.set_status(StatusMessage::error(format!("Reload failed: {e}")));
+                if is_disconnect_error(&err_str) {
+                    self.handle_disconnect();
+                }
+            }
         }
-        info!(brightness, effect, speed, hue, sat, "lighting reloaded");
-        self.set_status(StatusMessage::info("Lighting reloaded from device"));
     }
 }
 

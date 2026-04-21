@@ -10,12 +10,15 @@ mod keycodes;
 pub mod layout;
 mod protocol;
 
-pub use command::{LightingChannel, RgbValueId, ViaCommand, ViaCommandId};
+pub use command::{
+    LightingChannel, LightingProtocol, RgbValueId, ViaCommand, ViaCommandId, VialRgbEffect,
+    VialRgbValueId,
+};
 pub use device::{HidAccessStatus, KeyboardDevice, KeyboardInfo};
 pub use error::{ViaError, ViaResult};
 pub use keycodes::{all_basic_keycodes, keycode_groups, Keycode, KeycodeCategory, KeycodeGroup};
 pub use layout::{KeyPosition, KeyboardLayout};
-pub use protocol::ViaProtocol;
+pub use protocol::{LightingValues, ViaProtocol, VialRgbInfo};
 
 /// VIA HID usage page used to identify VIA-enabled keyboards.
 pub const VIA_USAGE_PAGE: u16 = 0xFF60;

@@ -48,12 +48,14 @@ pub enum KeyboardValueId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum LightingChannel {
-    QmkRgblight = 0x01,
-    QmkRgbMatrix = 0x02,
-    QmkLed = 0x03,
+    QmkBacklight = 0x01,
+    QmkRgblight = 0x02,
+    QmkRgbMatrix = 0x03,
+    QmkAudio = 0x04,
+    QmkLedMatrix = 0x05,
 }
 
-/// RGB lighting value sub-IDs (for rgblight / rgb_matrix).
+/// RGB lighting value sub-IDs for stock VIA protocol (v12+, channel-based).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum RgbValueId {
@@ -61,6 +63,155 @@ pub enum RgbValueId {
     Effect = 0x02,
     EffectSpeed = 0x03,
     Color = 0x04, // HSV: hue(u16), sat(u8), val(u8) — but brightness is typically separate
+}
+
+/// RGB lighting value IDs for Vial firmware (no channel byte, uses rgblight-style IDs).
+/// These are used directly as value_id in `[cmd_id, value_id, data...]` messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum VialRgbValueId {
+    Brightness = 0x80,
+    Effect = 0x81,
+    EffectSpeed = 0x82,
+    Color = 0x83,
+}
+
+/// Whether we're talking to stock VIA or Vial firmware.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LightingProtocol {
+    /// Stock VIA (v12+): `[cmd, channel, value_id, data...]`
+    Via { channel: LightingChannel },
+    /// Vial firmware with VIA_QMK_RGB_MATRIX_ENABLE (no VIALRGB):
+    /// `[cmd, value_id, data...]` — no channel byte, uses 0x80+ value IDs
+    VialLegacy,
+    /// VialRGB protocol: uses sub-commands 0x40-0x44, 16-bit effect IDs,
+    /// all-in-one set_mode command
+    VialRgb,
+}
+
+/// VialRGB sub-command IDs (used as data[1] with CustomGetValue/CustomSetValue).
+/// Note: GET and SET share the same sub-command IDs (0x41, 0x42) but the
+/// parent command (CustomGetValue vs CustomSetValue) differentiates them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum VialRgbCmd {
+    GetInfo = 0x40,
+    GetModeOrSetMode = 0x41,
+    GetSupportedOrDirectFastSet = 0x42,
+    GetNumLeds = 0x43,
+    GetLedInfo = 0x44,
+}
+
+/// VialRGB effect IDs (16-bit, sequential).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u16)]
+pub enum VialRgbEffect {
+    Off = 0,
+    Direct = 1,
+    SolidColor = 2,
+    AlphasMods = 3,
+    GradientUpDown = 4,
+    GradientLeftRight = 5,
+    Breathing = 6,
+    BandSat = 7,
+    BandVal = 8,
+    BandPinwheelSat = 9,
+    BandPinwheelVal = 10,
+    BandSpiralSat = 11,
+    BandSpiralVal = 12,
+    CycleAll = 13,
+    CycleLeftRight = 14,
+    CycleUpDown = 15,
+    RainbowMovingChevron = 16,
+    CycleOutIn = 17,
+    CycleOutInDual = 18,
+    CyclePinwheel = 19,
+    CycleSpiral = 20,
+    DualBeacon = 21,
+    RainbowBeacon = 22,
+    RainbowPinwheels = 23,
+    Raindrops = 24,
+    JellybeanRaindrops = 25,
+    HueBreathing = 26,
+    HuePendulum = 27,
+    HueWave = 28,
+    TypingHeatmap = 29,
+    DigitalRain = 30,
+    SolidReactiveSimple = 31,
+    SolidReactive = 32,
+    SolidReactiveWide = 33,
+    SolidReactiveMultiwide = 34,
+    SolidReactiveCross = 35,
+    SolidReactiveMulticross = 36,
+    SolidReactiveNexus = 37,
+    SolidReactiveMultinexus = 38,
+    Splash = 39,
+    Multisplash = 40,
+    SolidSplash = 41,
+    SolidMultisplash = 42,
+    PixelRain = 43,
+    PixelFractal = 44,
+}
+
+impl VialRgbEffect {
+    pub fn from_u16(v: u16) -> Option<Self> {
+        if v <= 44 {
+            // Safety: all values 0-44 are valid variants
+            Some(unsafe { std::mem::transmute(v) })
+        } else {
+            None
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Off => "Off",
+            Self::Direct => "Direct",
+            Self::SolidColor => "Solid Color",
+            Self::AlphasMods => "Alphas Mods",
+            Self::GradientUpDown => "Gradient Up/Down",
+            Self::GradientLeftRight => "Gradient Left/Right",
+            Self::Breathing => "Breathing",
+            Self::BandSat => "Band Sat",
+            Self::BandVal => "Band Val",
+            Self::BandPinwheelSat => "Band Pinwheel Sat",
+            Self::BandPinwheelVal => "Band Pinwheel Val",
+            Self::BandSpiralSat => "Band Spiral Sat",
+            Self::BandSpiralVal => "Band Spiral Val",
+            Self::CycleAll => "Cycle All",
+            Self::CycleLeftRight => "Cycle Left/Right",
+            Self::CycleUpDown => "Cycle Up/Down",
+            Self::RainbowMovingChevron => "Rainbow Moving Chevron",
+            Self::CycleOutIn => "Cycle Out/In",
+            Self::CycleOutInDual => "Cycle Out/In Dual",
+            Self::CyclePinwheel => "Cycle Pinwheel",
+            Self::CycleSpiral => "Cycle Spiral",
+            Self::DualBeacon => "Dual Beacon",
+            Self::RainbowBeacon => "Rainbow Beacon",
+            Self::RainbowPinwheels => "Rainbow Pinwheels",
+            Self::Raindrops => "Raindrops",
+            Self::JellybeanRaindrops => "Jellybean Raindrops",
+            Self::HueBreathing => "Hue Breathing",
+            Self::HuePendulum => "Hue Pendulum",
+            Self::HueWave => "Hue Wave",
+            Self::TypingHeatmap => "Typing Heatmap",
+            Self::DigitalRain => "Digital Rain",
+            Self::SolidReactiveSimple => "Solid Reactive Simple",
+            Self::SolidReactive => "Solid Reactive",
+            Self::SolidReactiveWide => "Solid Reactive Wide",
+            Self::SolidReactiveMultiwide => "Solid Reactive Multiwide",
+            Self::SolidReactiveCross => "Solid Reactive Cross",
+            Self::SolidReactiveMulticross => "Solid Reactive Multicross",
+            Self::SolidReactiveNexus => "Solid Reactive Nexus",
+            Self::SolidReactiveMultinexus => "Solid Reactive Multinexus",
+            Self::Splash => "Splash",
+            Self::Multisplash => "Multisplash",
+            Self::SolidSplash => "Solid Splash",
+            Self::SolidMultisplash => "Solid Multisplash",
+            Self::PixelRain => "Pixel Rain",
+            Self::PixelFractal => "Pixel Fractal",
+        }
+    }
 }
 
 impl ViaCommandId {
@@ -188,7 +339,71 @@ impl ViaCommand {
     }
 
     /// Save custom values (lighting etc.) to persistent storage.
-    pub fn custom_save() -> Self {
+    /// Must include the channel so QMK routes to the correct save handler.
+    pub fn custom_save(channel: u8) -> Self {
+        Self::with_data(ViaCommandId::CustomSave, &[channel])
+    }
+
+    // -- Vial-style lighting commands (no channel byte) --
+
+    /// Get a Vial lighting value. Format: `[cmd_id, value_id]`
+    pub fn vial_get_lighting_value(value_id: u8) -> Self {
+        Self::with_data(ViaCommandId::CustomGetValue, &[value_id])
+    }
+
+    /// Set a Vial lighting value. Format: `[cmd_id, value_id, data...]`
+    pub fn vial_set_lighting_value(value_id: u8, payload: &[u8]) -> Self {
+        let mut data = vec![value_id];
+        data.extend_from_slice(payload);
+        Self::with_data(ViaCommandId::CustomSetValue, &data)
+    }
+
+    /// Save custom values for Vial (no channel byte needed).
+    pub fn vial_custom_save() -> Self {
         Self::simple(ViaCommandId::CustomSave)
+    }
+
+    // -- VialRGB commands --
+
+    /// VialRGB: get info. Response: [cmd, 0x40, version_lo, version_hi, max_brightness]
+    pub fn vialrgb_get_info() -> Self {
+        Self::with_data(ViaCommandId::CustomGetValue, &[VialRgbCmd::GetInfo as u8])
+    }
+
+    /// VialRGB: get current mode. Response: [cmd, 0x41, mode_lo, mode_hi, speed, hue, sat, val]
+    pub fn vialrgb_get_mode() -> Self {
+        Self::with_data(
+            ViaCommandId::CustomGetValue,
+            &[VialRgbCmd::GetModeOrSetMode as u8],
+        )
+    }
+
+    /// VialRGB: set mode (all-in-one). Payload: [0x41, mode_lo, mode_hi, speed, hue, sat, val]
+    pub fn vialrgb_set_mode(mode: u16, speed: u8, hue: u8, sat: u8, val: u8) -> Self {
+        Self::with_data(
+            ViaCommandId::CustomSetValue,
+            &[
+                VialRgbCmd::GetModeOrSetMode as u8,
+                (mode & 0xFF) as u8,
+                (mode >> 8) as u8,
+                speed,
+                hue,
+                sat,
+                val,
+            ],
+        )
+    }
+
+    /// VialRGB: get supported effects. Pass gt=0 first, then gt=last_id to paginate.
+    /// Response: list of u16 effect IDs, terminated by 0xFFFF.
+    pub fn vialrgb_get_supported(gt: u16) -> Self {
+        Self::with_data(
+            ViaCommandId::CustomGetValue,
+            &[
+                VialRgbCmd::GetSupportedOrDirectFastSet as u8,
+                (gt & 0xFF) as u8,
+                (gt >> 8) as u8,
+            ],
+        )
     }
 }
