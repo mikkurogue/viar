@@ -1,9 +1,9 @@
 use crate::{
     command::{LightingChannel, LightingProtocol, RgbValueId, VialRgbValueId},
     device::KeyboardDevice,
-    ViaCommand, ViaResult,
+    ViaCommand, ViaError, ViaResult,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// High-level VIA protocol interface for a connected keyboard.
 pub struct ViaProtocol<'a> {
@@ -121,6 +121,101 @@ impl<'a> ViaProtocol<'a> {
             .device
             .send_command(&ViaCommand::get_macro_buffer_size())?;
         Ok(u16::from_be_bytes([resp[1], resp[2]]))
+    }
+
+    // ========================================================================
+    // Vial firmware — keyboard definition fetching
+    // ========================================================================
+
+    /// Get the Vial keyboard ID, protocol version, and UID.
+    /// Returns (vial_protocol_version, uid_bytes).
+    pub fn vial_get_keyboard_id(&self) -> ViaResult<(u32, [u8; 8])> {
+        let resp = self
+            .device
+            .send_command(&ViaCommand::vial_get_keyboard_id())?;
+        // Firmware overwrites entire msg buffer:
+        // msg[0..3] = VIAL_PROTOCOL_VERSION (u32 LE)
+        // msg[4..11] = keyboard UID (8 bytes)
+        // msg[12] = vialrgb flag (optional)
+        let version = u32::from_le_bytes([resp[0], resp[1], resp[2], resp[3]]);
+        let mut uid = [0u8; 8];
+        uid.copy_from_slice(&resp[4..12]);
+        info!(vial_protocol_version = version, uid = ?uid, "vial keyboard ID");
+        Ok((version, uid))
+    }
+
+    /// Get the size of the compressed Vial keyboard definition.
+    pub fn vial_get_definition_size(&self) -> ViaResult<u32> {
+        let resp = self.device.send_command(&ViaCommand::vial_get_size())?;
+        // Firmware writes size at msg[0..3] (u32 LE)
+        let size = u32::from_le_bytes([resp[0], resp[1], resp[2], resp[3]]);
+        info!(compressed_size = size, "vial definition size");
+        Ok(size)
+    }
+
+    /// Fetch and decompress the full Vial keyboard definition JSON.
+    /// Returns the parsed JSON string.
+    pub fn vial_get_definition(&self) -> ViaResult<String> {
+        // First check if this is a Vial keyboard
+        let (version, _uid) = self.vial_get_keyboard_id()?;
+        if version == 0 {
+            return Err(ViaError::Protocol("not a Vial keyboard (version 0)".into()));
+        }
+
+        let size = self.vial_get_definition_size()? as usize;
+        if size == 0 || size > 1_000_000 {
+            return Err(ViaError::Protocol(format!(
+                "invalid definition size: {size}"
+            )));
+        }
+
+        // Fetch compressed data page by page (32 bytes per page from byte index 1..33 of response)
+        let mut compressed = Vec::with_capacity(size);
+        let page_size = 32usize; // each response gives us 32 bytes of definition data
+        let num_pages = (size + page_size - 1) / page_size;
+        for page in 0..num_pages {
+            let resp = self
+                .device
+                .send_command(&ViaCommand::vial_get_def(page as u16))?;
+            let remaining = size - compressed.len();
+            let take = remaining.min(page_size);
+            // The definition data starts at byte 0 of the response for vial_get_def
+            // (the 0xFE prefix is consumed by the firmware, response is raw data)
+            compressed.extend_from_slice(&resp[..take]);
+            debug!(
+                page,
+                bytes = take,
+                total = compressed.len(),
+                size,
+                "fetching vial definition"
+            );
+        }
+
+        info!(
+            compressed_bytes = compressed.len(),
+            first_bytes = ?&compressed[..compressed.len().min(16)],
+            "vial definition fetched, decompressing"
+        );
+
+        // Try LZMA decompression first, fall back to XZ if that fails
+        let mut decompressed = Vec::new();
+        let lzma_result =
+            lzma_rs::lzma_decompress(&mut std::io::Cursor::new(&compressed), &mut decompressed);
+        if lzma_result.is_err() {
+            decompressed.clear();
+            lzma_rs::xz_decompress(&mut std::io::Cursor::new(&compressed), &mut decompressed)
+                .map_err(|e| {
+                    ViaError::Protocol(format!("decompression failed (tried LZMA and XZ): {e}"))
+                })?;
+        }
+
+        let json = String::from_utf8(decompressed)
+            .map_err(|e| ViaError::Protocol(format!("definition is not valid UTF-8: {e}")))?;
+
+        info!(json_len = json.len(), "vial definition decompressed");
+        debug!(json = %json, "vial definition JSON");
+
+        Ok(json)
     }
 
     // ========================================================================

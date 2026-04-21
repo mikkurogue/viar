@@ -3,7 +3,7 @@ use tracing::{debug, info, warn};
 use via_protocol::{
     device::{check_hid_permissions, discover_keyboards},
     keycode_groups,
-    layout::{find_layout, generic_layout},
+    layout::{find_layout, generic_layout, parse_vial_definition},
     HidAccessStatus, KeyboardDevice, LightingProtocol, ViaProtocol,
 };
 
@@ -118,15 +118,41 @@ impl ViarApp {
             return;
         };
         let info = &dev.info;
-        let layout = find_layout(info.vendor_id, info.product_id).unwrap_or_else(|| {
-            debug!(
-                "no built-in layout for {:04x}:{:04x}, using generic",
-                info.vendor_id, info.product_id
-            );
-            generic_layout(4, 12)
-        });
-
         let proto = ViaProtocol::new(dev);
+
+        // Try Vial definition first, then hardcoded, then generic
+        let layout = match proto.vial_get_definition() {
+            Ok(json) => {
+                info!("got Vial definition from firmware, parsing KLE layout");
+                match parse_vial_definition(&json) {
+                    Ok(mut layout) => {
+                        // Set the name from device info if the definition didn't have one
+                        if layout.name == "Vial Keyboard" {
+                            layout.name = format!("{}", info);
+                        }
+                        layout
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "failed to parse Vial definition, falling back");
+                        find_layout(info.vendor_id, info.product_id).unwrap_or_else(|| {
+                            debug!("no built-in layout, using generic");
+                            generic_layout(4, 12)
+                        })
+                    }
+                }
+            }
+            Err(e) => {
+                debug!(error = %e, "no Vial definition available, trying built-in layouts");
+                find_layout(info.vendor_id, info.product_id).unwrap_or_else(|| {
+                    debug!(
+                        "no built-in layout for {:04x}:{:04x}, using generic",
+                        info.vendor_id, info.product_id
+                    );
+                    generic_layout(4, 12)
+                })
+            }
+        };
+
         let layer_count = proto.get_layer_count().unwrap_or(4);
         info!(
             layers = layer_count,

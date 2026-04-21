@@ -17,7 +17,7 @@ pub use command::{
 pub use device::{HidAccessStatus, KeyboardDevice, KeyboardInfo};
 pub use error::{ViaError, ViaResult};
 pub use keycodes::{all_basic_keycodes, keycode_groups, Keycode, KeycodeCategory, KeycodeGroup};
-pub use layout::{KeyPosition, KeyboardLayout};
+pub use layout::{parse_vial_definition, KeyPosition, KeyboardLayout};
 pub use protocol::{LightingValues, ViaProtocol, VialRgbInfo};
 
 /// VIA HID usage page used to identify VIA-enabled keyboards.

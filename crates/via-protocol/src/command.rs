@@ -394,6 +394,26 @@ impl ViaCommand {
         )
     }
 
+    // -- Vial protocol commands (0xFE prefix) --
+
+    /// Vial: get keyboard ID. Response: [0xFE, vial_protocol_version(u32 LE), uid(8 bytes)]
+    pub fn vial_get_keyboard_id() -> Self {
+        Self::with_data(ViaCommandId::VialPrefix, &[0x00])
+    }
+
+    /// Vial: get compressed definition size. Response: [0xFE, size(u32 LE)]
+    pub fn vial_get_size() -> Self {
+        Self::with_data(ViaCommandId::VialPrefix, &[0x01])
+    }
+
+    /// Vial: get compressed definition page. Each page is 32 bytes of the compressed data.
+    pub fn vial_get_def(page: u16) -> Self {
+        Self::with_data(
+            ViaCommandId::VialPrefix,
+            &[0x02, (page & 0xFF) as u8, (page >> 8) as u8],
+        )
+    }
+
     /// VialRGB: get supported effects. Pass gt=0 first, then gt=last_id to paginate.
     /// Response: list of u16 effect IDs, terminated by 0xFFFF.
     pub fn vialrgb_get_supported(gt: u16) -> Self {

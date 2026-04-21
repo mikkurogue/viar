@@ -2,6 +2,8 @@
 ///
 /// A layout describes where each key is physically positioned for rendering,
 /// and maps each visual key to a (row, col) in the keyboard matrix.
+use serde_json::Value;
+use tracing::{debug, warn};
 
 /// A single physical key position.
 #[derive(Debug, Clone)]
@@ -182,4 +184,187 @@ pub fn generic_layout(rows: u8, cols: u8) -> KeyboardLayout {
         cols,
         keys,
     }
+}
+
+/// Parse a Vial keyboard definition JSON string into a KeyboardLayout.
+///
+/// The JSON format is:
+/// ```json
+/// {
+///     "matrix": {"rows": N, "cols": M},
+///     "layouts": {
+///         "keymap": [["row,col", ...], [{properties}, "row,col", ...], ...]
+///     }
+/// }
+/// ```
+///
+/// The keymap uses KLE (keyboard-layout-editor.com) format where:
+/// - Each top-level array element is a row
+/// - Within a row, JSON objects set properties (x, y, w, h, r, rx, ry offsets)
+/// - Strings are key legends in "row,col" format (first legend = matrix position)
+/// - Properties like `w`, `h` apply only to the next key then reset
+/// - Properties like `x`, `y` are additive offsets
+/// - `r`, `rx`, `ry` set rotation and persist until changed
+pub fn parse_vial_definition(json: &str) -> Result<KeyboardLayout, String> {
+    let root: Value = serde_json::from_str(json).map_err(|e| format!("invalid JSON: {e}"))?;
+
+    let matrix = root.get("matrix").ok_or("missing 'matrix' field")?;
+    let rows = matrix
+        .get("rows")
+        .and_then(|v| v.as_u64())
+        .ok_or("missing matrix.rows")? as u8;
+    let cols = matrix
+        .get("cols")
+        .and_then(|v| v.as_u64())
+        .ok_or("missing matrix.cols")? as u8;
+
+    let layouts = root.get("layouts").ok_or("missing 'layouts' field")?;
+    let keymap = layouts
+        .get("keymap")
+        .and_then(|v| v.as_array())
+        .ok_or("missing layouts.keymap array")?;
+
+    let name = root
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Vial Keyboard")
+        .to_string();
+
+    let keys = parse_kle_keymap(keymap)?;
+
+    debug!(
+        name = %name,
+        rows, cols,
+        num_keys = keys.len(),
+        "parsed Vial definition"
+    );
+
+    Ok(KeyboardLayout {
+        name,
+        vid_pid: vec![],
+        rows,
+        cols,
+        keys,
+    })
+}
+
+/// Parse KLE-format keymap rows into KeyPosition entries.
+fn parse_kle_keymap(keymap: &[Value]) -> Result<Vec<KeyPosition>, String> {
+    let mut keys = Vec::new();
+
+    // Current position state
+    let mut cur_x: f32;
+    let mut cur_y: f32 = 0.0;
+
+    // Per-key properties (reset after each key)
+    let mut next_w: f32 = 1.0;
+    let mut next_h: f32 = 1.0;
+
+    // Rotation state (persists until changed)
+    let mut cur_r: f32 = 0.0;
+    let mut cur_rx: f32 = 0.0;
+    let mut cur_ry: f32 = 0.0;
+
+    for row_value in keymap {
+        let row_arr = row_value.as_array().ok_or("keymap row is not an array")?;
+
+        // Each new row: advance Y by 1, reset X to 0 (or rx if rotated)
+        // But the first row starts at 0,0
+        // KLE convention: new row = x resets, y increments
+        // However, if rx/ry are set, x resets to rx and y to ry on rotation change
+
+        cur_x = cur_rx; // reset x to rotation origin at start of each row
+                        // y is incremented at the end of the previous row (handled below)
+
+        for item in row_arr {
+            match item {
+                Value::Object(props) => {
+                    // Properties object — sets state for next key(s)
+                    if let Some(x) = props.get("x").and_then(|v| v.as_f64()) {
+                        cur_x += x as f32;
+                    }
+                    if let Some(y) = props.get("y").and_then(|v| v.as_f64()) {
+                        cur_y += y as f32;
+                    }
+                    if let Some(w) = props.get("w").and_then(|v| v.as_f64()) {
+                        next_w = w as f32;
+                    }
+                    if let Some(h) = props.get("h").and_then(|v| v.as_f64()) {
+                        next_h = h as f32;
+                    }
+                    if let Some(r) = props.get("r").and_then(|v| v.as_f64()) {
+                        cur_r = r as f32;
+                    }
+                    if let Some(rx) = props.get("rx").and_then(|v| v.as_f64()) {
+                        cur_rx = rx as f32;
+                        cur_x = cur_rx; // reset x when rx changes
+                    }
+                    if let Some(ry) = props.get("ry").and_then(|v| v.as_f64()) {
+                        cur_ry = ry as f32;
+                        cur_y = cur_ry; // reset y when ry changes
+                    }
+                }
+                Value::String(legend) => {
+                    // Key — first legend line is "row,col" or could be a label
+                    // Vial uses "row,col\n..." format
+                    // Encoders use "row,col\n\n\n\n\n\n\n\n\ne" format (line 10 = "e")
+                    let is_encoder = legend.lines().any(|line| line.trim() == "e");
+                    let first_line = legend.lines().next().unwrap_or("");
+
+                    if is_encoder {
+                        // Encoder — skip, don't add to layout keys
+                        debug!(legend = %legend, x = cur_x, y = cur_y, "skipping encoder key");
+                    } else if let Some((matrix_row, matrix_col)) = parse_matrix_pos(first_line) {
+                        let mut key = KeyPosition::new(cur_x, cur_y, matrix_row, matrix_col)
+                            .with_size(next_w, next_h)
+                            .with_rotation(cur_r, cur_rx, cur_ry);
+
+                        // Apply rotation to position so the renderer doesn't need
+                        // to handle rotated rectangles — just place keys at the
+                        // pre-rotated coordinates.
+                        if cur_r.abs() > 0.001 {
+                            let angle = cur_r.to_radians();
+                            let cos_a = angle.cos();
+                            let sin_a = angle.sin();
+                            // Rotate the key's top-left corner around (rx, ry)
+                            let dx = cur_x - cur_rx;
+                            let dy = cur_y - cur_ry;
+                            key.x = cur_rx + dx * cos_a - dy * sin_a;
+                            key.y = cur_ry + dx * sin_a + dy * cos_a;
+                        }
+
+                        keys.push(key);
+                    } else if first_line.is_empty() {
+                        debug!(legend = %legend, x = cur_x, y = cur_y, "skipping empty key");
+                    } else {
+                        warn!(legend = %legend, "unrecognized KLE legend format, skipping");
+                    }
+
+                    // Advance x by key width
+                    cur_x += next_w;
+
+                    // Reset per-key properties
+                    next_w = 1.0;
+                    next_h = 1.0;
+                }
+                _ => {
+                    warn!(?item, "unexpected item type in KLE row");
+                }
+            }
+        }
+
+        // End of row: advance y
+        cur_y += 1.0;
+    }
+
+    Ok(keys)
+}
+
+/// Parse a "row,col" string into (row, col) matrix coordinates.
+fn parse_matrix_pos(s: &str) -> Option<(u8, u8)> {
+    let s = s.trim();
+    let (row_s, col_s) = s.split_once(',')?;
+    let row = row_s.trim().parse::<u8>().ok()?;
+    let col = col_s.trim().parse::<u8>().ok()?;
+    Some((row, col))
 }
