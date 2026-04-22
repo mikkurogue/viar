@@ -17,7 +17,9 @@ use crate::{
         ViarApp,
     },
     util::{
-        CategoryStyle, is_disconnect_error, themed_tab
+        CategoryStyle,
+        is_disconnect_error,
+        themed_tab,
     },
 };
 
@@ -217,7 +219,7 @@ impl ViarApp {
             painter.rect_stroke(
                 rect,
                 rounding,
-                egui::Stroke::new(1.0, border_color),
+                egui::Stroke::new(1.0_f32, border_color),
                 egui::StrokeKind::Outside,
             );
 

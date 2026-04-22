@@ -128,9 +128,9 @@ pub fn keycode_chip(ui: &mut egui::Ui, label: &str, value: u16, is_active: bool)
         };
 
         let border = if is_active {
-            egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 180, 255))
+            egui::Stroke::new(2.0_f32, egui::Color32::from_rgb(100, 180, 255))
         } else {
-            egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 65))
+            egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(60, 60, 65))
         };
 
         let btn = ui.add(
@@ -282,7 +282,7 @@ pub fn shared_keycode_picker(
                             ui.painter().rect_stroke(
                                 rect,
                                 rounding,
-                                egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 180, 255)),
+                                egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(100, 180, 255)),
                                 egui::StrokeKind::Outside,
                             );
                         }
