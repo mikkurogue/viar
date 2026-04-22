@@ -102,16 +102,16 @@ impl ViarApp {
             ui.vertical_centered(|ui| {
                 ui.set_max_width(max_width);
 
-                let entries: Vec<(usize, KeyOverrideEntry)> = self
-                    .dynamic_data
-                    .as_ref()
-                    .unwrap()
+                let Some(dynamic) = self.dynamic_data.as_ref() else {
+                    return;
+                };
+                let entries: Vec<(usize, KeyOverrideEntry)> = dynamic
                     .key_overrides
                     .iter()
                     .enumerate()
                     .map(|(i, e)| (i, e.clone()))
                     .collect();
-                let editing = self.dynamic_data.as_ref().unwrap().editing_key_override;
+                let editing = dynamic.editing_key_override;
 
                 for (idx, entry) in &entries {
                     let is_editing = editing == Some(*idx);
@@ -165,15 +165,15 @@ impl ViarApp {
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {
                                     if is_editing {
-                                        if ui.button("Close").clicked() {
-                                            self.dynamic_data
-                                                .as_mut()
-                                                .unwrap()
-                                                .editing_key_override = None;
+                                        if ui.button("Close").clicked()
+                                            && let Some(dynamic) = self.dynamic_data.as_mut()
+                                        {
+                                            dynamic.editing_key_override = None;
                                         }
-                                    } else if ui.button("Edit").clicked() {
-                                        self.dynamic_data.as_mut().unwrap().editing_key_override =
-                                            Some(*idx);
+                                    } else if ui.button("Edit").clicked()
+                                        && let Some(dynamic) = self.dynamic_data.as_mut()
+                                    {
+                                        dynamic.editing_key_override = Some(*idx);
                                     }
                                 },
                             );
@@ -182,7 +182,9 @@ impl ViarApp {
                         if is_editing {
                             ui.add_space(8.0);
                             let mut changed = false;
-                            let dynamic = self.dynamic_data.as_mut().unwrap();
+                            let Some(dynamic) = self.dynamic_data.as_mut() else {
+                                return;
+                            };
                             let entry = &mut dynamic.key_overrides[*idx];
 
                             // Enabled toggle
@@ -221,11 +223,10 @@ impl ViarApp {
                                             .font(egui::TextStyle::Monospace),
                                     )
                                     .changed()
+                                    && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
                                 {
-                                    if let Ok(v) = u16::from_str_radix(hex.trim(), 16) {
-                                        entry.trigger = v;
-                                        changed = true;
-                                    }
+                                    entry.trigger = v;
+                                    changed = true;
                                 }
                             });
 
@@ -255,11 +256,10 @@ impl ViarApp {
                                             .font(egui::TextStyle::Monospace),
                                     )
                                     .changed()
+                                    && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
                                 {
-                                    if let Ok(v) = u16::from_str_radix(hex.trim(), 16) {
-                                        entry.replacement = v;
-                                        changed = true;
-                                    }
+                                    entry.replacement = v;
+                                    changed = true;
                                 }
                             });
 

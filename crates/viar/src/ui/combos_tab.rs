@@ -54,16 +54,16 @@ impl ViarApp {
             ui.vertical_centered(|ui| {
                 ui.set_max_width(max_width);
 
-                let entries: Vec<(usize, ComboEntry)> = self
-                    .dynamic_data
-                    .as_ref()
-                    .unwrap()
+                let Some(dynamic) = self.dynamic_data.as_ref() else {
+                    return;
+                };
+                let entries: Vec<(usize, ComboEntry)> = dynamic
                     .combos
                     .iter()
                     .enumerate()
                     .map(|(i, e)| (i, e.clone()))
                     .collect();
-                let editing = self.dynamic_data.as_ref().unwrap().editing_combo;
+                let editing = dynamic.editing_combo;
 
                 for (idx, entry) in &entries {
                     let is_editing = editing == Some(*idx);
@@ -108,13 +108,15 @@ impl ViarApp {
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {
                                     if is_editing {
-                                        if ui.button("Close").clicked() {
-                                            self.dynamic_data.as_mut().unwrap().editing_combo =
-                                                None;
+                                        if ui.button("Close").clicked()
+                                            && let Some(dynamic) = self.dynamic_data.as_mut()
+                                        {
+                                            dynamic.editing_combo = None;
                                         }
-                                    } else if ui.button("Edit").clicked() {
-                                        self.dynamic_data.as_mut().unwrap().editing_combo =
-                                            Some(*idx);
+                                    } else if ui.button("Edit").clicked()
+                                        && let Some(dynamic) = self.dynamic_data.as_mut()
+                                    {
+                                        dynamic.editing_combo = Some(*idx);
                                     }
                                 },
                             );
@@ -123,7 +125,9 @@ impl ViarApp {
                         if is_editing {
                             ui.add_space(8.0);
                             let mut changed = false;
-                            let dynamic = self.dynamic_data.as_mut().unwrap();
+                            let Some(dynamic) = self.dynamic_data.as_mut() else {
+                                return;
+                            };
                             let entry = &mut dynamic.combos[*idx];
 
                             // Input keys (up to 4)
@@ -156,11 +160,11 @@ impl ViarApp {
                                             .desired_width(60.0)
                                             .font(egui::TextStyle::Monospace),
                                     );
-                                    if resp.changed() {
-                                        if let Ok(v) = u16::from_str_radix(hex.trim(), 16) {
-                                            entry.input[input_idx] = v;
-                                            changed = true;
-                                        }
+                                    if resp.changed()
+                                        && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
+                                    {
+                                        entry.input[input_idx] = v;
+                                        changed = true;
                                     }
                                 });
                             }
@@ -194,11 +198,11 @@ impl ViarApp {
                                         .desired_width(60.0)
                                         .font(egui::TextStyle::Monospace),
                                 );
-                                if resp.changed() {
-                                    if let Ok(v) = u16::from_str_radix(hex.trim(), 16) {
-                                        entry.output = v;
-                                        changed = true;
-                                    }
+                                if resp.changed()
+                                    && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
+                                {
+                                    entry.output = v;
+                                    changed = true;
                                 }
                             });
 

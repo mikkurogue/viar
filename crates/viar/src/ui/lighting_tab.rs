@@ -71,7 +71,7 @@ fn categorize_effect(id: u16) -> EffectCategory {
         0 => EffectCategory::Off,
         1 | 2 | 3 | 6 | 26 => EffectCategory::Static,
         4 | 5 | 7 | 8 | 9 | 10 | 11 | 12 | 27 | 28 => EffectCategory::Gradient,
-        13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 => EffectCategory::CycleRainbow,
+        13..=23 => EffectCategory::CycleRainbow,
         29 | 31 | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 | 40 | 41 | 42 => EffectCategory::Reactive,
         24 | 25 | 30 | 43 | 44 => EffectCategory::Random,
         _ => EffectCategory::Static,
@@ -154,14 +154,14 @@ fn paint_hue_bar(ui: &mut egui::Ui, hue: &mut u8, sat: u8, brightness: u8, width
     );
 
     let mut changed = false;
-    if response.dragged() || response.clicked() {
-        if let Some(pos) = response.interact_pointer_pos() {
-            let t = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0);
-            let new_hue = (t * 255.0) as u8;
-            if new_hue != *hue {
-                *hue = new_hue;
-                changed = true;
-            }
+    if (response.dragged() || response.clicked())
+        && let Some(pos) = response.interact_pointer_pos()
+    {
+        let t = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0);
+        let new_hue = (t * 255.0) as u8;
+        if new_hue != *hue {
+            *hue = new_hue;
+            changed = true;
         }
     }
 
@@ -207,14 +207,14 @@ fn paint_sat_bar(ui: &mut egui::Ui, sat: &mut u8, hue: u8, brightness: u8, width
     );
 
     let mut changed = false;
-    if response.dragged() || response.clicked() {
-        if let Some(pos) = response.interact_pointer_pos() {
-            let t = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0);
-            let new_sat = (t * 255.0) as u8;
-            if new_sat != *sat {
-                *sat = new_sat;
-                changed = true;
-            }
+    if (response.dragged() || response.clicked())
+        && let Some(pos) = response.interact_pointer_pos()
+    {
+        let t = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0);
+        let new_sat = (t * 255.0) as u8;
+        if new_sat != *sat {
+            *sat = new_sat;
+            changed = true;
         }
     }
 
@@ -266,14 +266,14 @@ fn paint_brightness_bar(
     );
 
     let mut changed = false;
-    if response.dragged() || response.clicked() {
-        if let Some(pos) = response.interact_pointer_pos() {
-            let t = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0);
-            let new_val = (t * 255.0) as u8;
-            if new_val != *brightness {
-                *brightness = new_val;
-                changed = true;
-            }
+    if (response.dragged() || response.clicked())
+        && let Some(pos) = response.interact_pointer_pos()
+    {
+        let t = ((pos.x - rect.left()) / rect.width()).clamp(0.0, 1.0);
+        let new_val = (t * 255.0) as u8;
+        if new_val != *brightness {
+            *brightness = new_val;
+            changed = true;
         }
     }
 

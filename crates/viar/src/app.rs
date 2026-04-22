@@ -318,10 +318,10 @@ impl ViarApp {
 impl eframe::App for ViarApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Expire status messages
-        if let Some(ref s) = self.status {
-            if s.is_expired() {
-                self.status = None;
-            }
+        if let Some(ref s) = self.status
+            && s.is_expired()
+        {
+            self.status = None;
         }
 
         // Ctrl+Z for undo
@@ -330,7 +330,7 @@ impl eframe::App for ViarApp {
         }
 
         // Update title with dirty indicator
-        let dirty = self.keymap_data.as_ref().map_or(false, |d| d.dirty);
+        let dirty = self.keymap_data.as_ref().is_some_and(|d| d.dirty);
         let title = if dirty {
             "Viar — Keyboard Configurator *"
         } else {

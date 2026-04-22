@@ -16,13 +16,12 @@ impl ViarApp {
             {
                 self.active_tab = ConnectedTab::Keymap;
             }
-            if self.lighting_data.is_some() {
-                if ui
+            if self.lighting_data.is_some()
+                && ui
                     .selectable_label(self.active_tab == ConnectedTab::Lighting, "Lighting")
                     .clicked()
-                {
-                    self.active_tab = ConnectedTab::Lighting;
-                }
+            {
+                self.active_tab = ConnectedTab::Lighting;
             }
             if self.dynamic_data.is_some() {
                 if ui

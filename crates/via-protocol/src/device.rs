@@ -43,7 +43,9 @@ impl KeyboardDevice {
     /// Open a keyboard by its HID path.
     pub fn open(api: &hidapi::HidApi, info: KeyboardInfo) -> ViaResult<Self> {
         debug!(path = %info.path, keyboard = %info, "opening HID device");
-        let device = api.open_path(std::ffi::CString::new(info.path.clone()).unwrap().as_ref())?;
+        let path = std::ffi::CString::new(info.path.clone())
+            .map_err(|e| ViaError::Protocol(format!("invalid HID path: {e}")))?;
+        let device = api.open_path(path.as_ref())?;
         device.set_blocking_mode(true)?;
         info!(keyboard = %info, "connected to keyboard");
         Ok(Self { info, device })

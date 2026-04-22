@@ -292,7 +292,9 @@ impl VialRgbEffect {
     pub fn from_u16(v: u16) -> Option<Self> {
         if v <= 44 {
             // Safety: all values 0-44 are valid variants
-            Some(unsafe { std::mem::transmute(v) })
+            // Safety: all values 0-44 are valid variants
+            #[allow(unsafe_code)]
+            Some(unsafe { std::mem::transmute::<u16, VialRgbEffect>(v) })
         } else {
             None
         }

@@ -55,16 +55,16 @@ impl ViarApp {
             ui.vertical_centered(|ui| {
                 ui.set_max_width(max_width);
                 // We need to clone data out to avoid borrow issues
-                let entries: Vec<(usize, TapDanceEntry)> = self
-                    .dynamic_data
-                    .as_ref()
-                    .unwrap()
+                let Some(dynamic) = self.dynamic_data.as_ref() else {
+                    return;
+                };
+                let entries: Vec<(usize, TapDanceEntry)> = dynamic
                     .tap_dances
                     .iter()
                     .enumerate()
                     .map(|(i, e)| (i, e.clone()))
                     .collect();
-                let editing = self.dynamic_data.as_ref().unwrap().editing_tap_dance;
+                let editing = dynamic.editing_tap_dance;
 
                 for (idx, entry) in &entries {
                     let is_editing = editing == Some(*idx);
@@ -109,13 +109,15 @@ impl ViarApp {
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {
                                     if is_editing {
-                                        if ui.button("Close").clicked() {
-                                            self.dynamic_data.as_mut().unwrap().editing_tap_dance =
-                                                None;
+                                        if ui.button("Close").clicked()
+                                            && let Some(dynamic) = self.dynamic_data.as_mut()
+                                        {
+                                            dynamic.editing_tap_dance = None;
                                         }
-                                    } else if ui.button("Edit").clicked() {
-                                        self.dynamic_data.as_mut().unwrap().editing_tap_dance =
-                                            Some(*idx);
+                                    } else if ui.button("Edit").clicked()
+                                        && let Some(dynamic) = self.dynamic_data.as_mut()
+                                    {
+                                        dynamic.editing_tap_dance = Some(*idx);
                                     }
                                 },
                             );
@@ -124,7 +126,9 @@ impl ViarApp {
                         if is_editing {
                             ui.add_space(8.0);
                             let mut changed = false;
-                            let dynamic = self.dynamic_data.as_mut().unwrap();
+                            let Some(dynamic) = self.dynamic_data.as_mut() else {
+                                return;
+                            };
                             let entry = &mut dynamic.tap_dances[*idx];
 
                             let fields = [
@@ -165,11 +169,11 @@ impl ViarApp {
                                             .desired_width(60.0)
                                             .font(egui::TextStyle::Monospace),
                                     );
-                                    if resp.changed() {
-                                        if let Ok(v) = u16::from_str_radix(hex.trim(), 16) {
-                                            *value = v;
-                                            changed = true;
-                                        }
+                                    if resp.changed()
+                                        && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
+                                    {
+                                        *value = v;
+                                        changed = true;
                                     }
                                 });
                             }

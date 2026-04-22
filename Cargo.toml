@@ -1,3 +1,16 @@
 [workspace]
 members = ["crates/via-protocol", "crates/viar"]
 resolver = "3"
+
+[workspace.lints.clippy]
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+dbg_macro = "deny"
+enum_variant_names = "allow"
+print_stdout = "warn"
+print_stderr = "warn"
+
+[workspace.lints.rust]
+unused_must_use = "deny"

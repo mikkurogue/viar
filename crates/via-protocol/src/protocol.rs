@@ -183,7 +183,7 @@ impl<'a> ViaProtocol<'a> {
         // Fetch compressed data page by page (32 bytes per page from byte index 1..33 of response)
         let mut compressed = Vec::with_capacity(size);
         let page_size = 32usize; // each response gives us 32 bytes of definition data
-        let num_pages = (size + page_size - 1) / page_size;
+        let num_pages = size.div_ceil(page_size);
         for page in 0..num_pages {
             let resp = self
                 .device

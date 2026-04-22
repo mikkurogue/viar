@@ -51,8 +51,7 @@ impl ViarApp {
         let padding = 40.0;
         let key_size = ((available.x - padding * 2.0) / layout_w)
             .min((available.y - padding * 2.0) / layout_h)
-            .min(64.0)
-            .max(32.0);
+            .clamp(32.0, 64.0);
         let gap = 8.0;
 
         let total_w = layout_w * key_size;
@@ -191,7 +190,7 @@ impl ViarApp {
                 let in_picker = ui
                     .ctx()
                     .memory(|mem| mem.area_rect(picker_id))
-                    .map_or(false, |r| r.contains(pos));
+                    .is_some_and(|r| r.contains(pos));
                 if !in_picker {
                     data.selected_key = None;
                 }
@@ -278,14 +277,15 @@ impl ViarApp {
                         );
                         ui.memory_mut(|mem| mem.data.insert_temp(hex_id, hex_str.clone()));
 
-                        if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                            if let Ok(v) = u16::from_str_radix(hex_str.trim(), 16) {
-                                ui.memory_mut(|mem| {
-                                    mem.data.insert_temp(egui::Id::new("pending_keycode"), v);
-                                    mem.data
-                                        .insert_temp(egui::Id::new("pending_key_idx"), key_idx);
-                                });
-                            }
+                        if resp.lost_focus()
+                            && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                            && let Ok(v) = u16::from_str_radix(hex_str.trim(), 16)
+                        {
+                            ui.memory_mut(|mem| {
+                                mem.data.insert_temp(egui::Id::new("pending_keycode"), v);
+                                mem.data
+                                    .insert_temp(egui::Id::new("pending_key_idx"), key_idx);
+                            });
                         }
 
                         let preview_kc = u16::from_str_radix(hex_str.trim(), 16).unwrap_or(0);
@@ -304,14 +304,13 @@ impl ViarApp {
                                     .corner_radius(egui::CornerRadius::same(3)),
                             )
                             .clicked()
+                            && let Ok(v) = u16::from_str_radix(hex_str.trim(), 16)
                         {
-                            if let Ok(v) = u16::from_str_radix(hex_str.trim(), 16) {
-                                ui.memory_mut(|mem| {
-                                    mem.data.insert_temp(egui::Id::new("pending_keycode"), v);
-                                    mem.data
-                                        .insert_temp(egui::Id::new("pending_key_idx"), key_idx);
-                                });
-                            }
+                            ui.memory_mut(|mem| {
+                                mem.data.insert_temp(egui::Id::new("pending_keycode"), v);
+                                mem.data
+                                    .insert_temp(egui::Id::new("pending_key_idx"), key_idx);
+                            });
                         }
                     });
 
@@ -414,10 +413,8 @@ impl ViarApp {
                 });
 
             // Close popover => deselect key
-            if !open {
-                if let Some(data) = &mut self.keymap_data {
-                    data.selected_key = None;
-                }
+            if !open && let Some(data) = &mut self.keymap_data {
+                data.selected_key = None;
             }
         }
 
@@ -461,12 +458,11 @@ impl ViarApp {
             return;
         }
 
-        if let Some(layer_data) = data.keymap.get_mut(layer) {
-            if let Some(row_data) = layer_data.get_mut(row as usize) {
-                if let Some(cell) = row_data.get_mut(col as usize) {
-                    *cell = new_keycode;
-                }
-            }
+        if let Some(layer_data) = data.keymap.get_mut(layer)
+            && let Some(row_data) = layer_data.get_mut(row as usize)
+            && let Some(cell) = row_data.get_mut(col as usize)
+        {
+            *cell = new_keycode;
         }
 
         data.undo_stack.push(KeyChange {
@@ -534,12 +530,11 @@ impl ViarApp {
             return;
         };
 
-        if let Some(layer_data) = data.keymap.get_mut(change.layer) {
-            if let Some(row_data) = layer_data.get_mut(change.row as usize) {
-                if let Some(cell) = row_data.get_mut(change.col as usize) {
-                    *cell = change.old_keycode;
-                }
-            }
+        if let Some(layer_data) = data.keymap.get_mut(change.layer)
+            && let Some(row_data) = layer_data.get_mut(change.row as usize)
+            && let Some(cell) = row_data.get_mut(change.col as usize)
+        {
+            *cell = change.old_keycode;
         }
 
         if data.undo_stack.is_empty() {
@@ -621,7 +616,15 @@ impl ViarApp {
         });
 
         let path = "viar_keymap.json";
-        match std::fs::write(path, serde_json::to_string_pretty(&dump).unwrap()) {
+        let json_str = match serde_json::to_string_pretty(&dump) {
+            Ok(s) => s,
+            Err(e) => {
+                warn!(error = %e, "failed to serialize keymap");
+                self.set_status(StatusMessage::error(format!("Export failed: {e}")));
+                return;
+            }
+        };
+        match std::fs::write(path, json_str) {
             Ok(_) => {
                 info!("keymap exported to {path}");
                 if let Some(data) = &mut self.keymap_data {
@@ -712,11 +715,10 @@ impl ViarApp {
         let mut errors = 0usize;
         if let Some(dev) = &self.connected_device {
             let proto = ViaProtocol::new(dev);
-            for layer in 0..new_keymap.len() {
-                for row in 0..new_keymap[layer].len() {
-                    for col in 0..new_keymap[layer][row].len() {
+            for (layer, layer_keys) in new_keymap.iter().enumerate() {
+                for (row, row_keys) in layer_keys.iter().enumerate() {
+                    for (col, &new) in row_keys.iter().enumerate() {
                         let old = data.keymap[layer][row][col];
-                        let new = new_keymap[layer][row][col];
                         if old != new {
                             match proto.set_keycode(layer as u8, row as u8, col as u8, new) {
                                 Ok(()) => changed += 1,

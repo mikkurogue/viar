@@ -19,11 +19,11 @@ impl ViarApp {
                         self.refresh();
                         ui.close();
                     }
-                    if self.connected_device.is_some() {
-                        if ui.button("Disconnect").clicked() {
-                            self.disconnect();
-                            ui.close();
-                        }
+                    if self.connected_device.is_some()
+                        && ui.button("Disconnect").clicked()
+                    {
+                        self.disconnect();
+                        ui.close();
                     }
                     ui.separator();
                     if ui.button("Quit").clicked() {
