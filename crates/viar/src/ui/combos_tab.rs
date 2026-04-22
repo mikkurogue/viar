@@ -234,6 +234,7 @@ impl ViarApp {
                         &mut group_idx,
                         &self.picker_groups,
                         &field_label,
+                        &self.theme,
                     );
 
                     if let Some(dynamic) = self.dynamic_data.as_mut() {

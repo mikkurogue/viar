@@ -17,8 +17,7 @@ use crate::{
         ViarApp,
     },
     util::{
-        is_disconnect_error,
-        key_bg_color,
+        CategoryStyle, is_disconnect_error, themed_tab
     },
 };
 
@@ -35,7 +34,7 @@ impl ViarApp {
             for layer in 0..data.layer_count as usize {
                 let label = format!("Layer {layer}");
                 let selected = data.selected_layer == layer;
-                if ui.selectable_label(selected, &label).clicked() {
+                if themed_tab(ui, selected, &label, &self.theme).clicked() {
                     data.selected_layer = layer;
                     data.selected_key = None;
                 }
@@ -204,7 +203,7 @@ impl ViarApp {
             } else if is_hovered {
                 egui::Color32::from_rgb(80, 80, 90)
             } else {
-                key_bg_color(&keycode)
+                keycode.category().bg()
             };
 
             let border_color = if is_selected {
@@ -509,7 +508,7 @@ impl ViarApp {
                         for (i, group) in self.picker_groups.iter().enumerate() {
                             let sel = self.picker_selected_group == i;
                             let label = egui::RichText::new(group.name).size(11.5);
-                            if ui.selectable_label(sel, label).clicked() {
+                            if themed_tab(ui, sel, label, &self.theme).clicked() {
                                 self.picker_selected_group = i;
                             }
                         }
@@ -542,7 +541,7 @@ impl ViarApp {
                                         } else if is_hovered {
                                             egui::Color32::from_rgb(80, 80, 90)
                                         } else {
-                                            key_bg_color(kc)
+                                            kc.category().bg()
                                         };
                                         let border = if is_current {
                                             egui::Color32::from_rgb(100, 180, 255)

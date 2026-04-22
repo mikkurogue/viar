@@ -10,10 +10,6 @@ use tracing::{
     warn,
 };
 
-// ---------------------------------------------------------------------------
-// Color helper
-// ---------------------------------------------------------------------------
-
 fn hex_to_color32(hex: &str) -> egui::Color32 {
     let hex = hex.trim_start_matches('#');
     if hex.len() == 6 {
@@ -25,10 +21,6 @@ fn hex_to_color32(hex: &str) -> egui::Color32 {
         egui::Color32::from_rgb(128, 128, 128)
     }
 }
-
-// ---------------------------------------------------------------------------
-// Theme colors
-// ---------------------------------------------------------------------------
 
 /// All the semantic colors used throughout the application.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,31 +183,22 @@ impl Theme {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Built-in themes
-// ---------------------------------------------------------------------------
-
 pub fn builtin_themes() -> Vec<Theme> {
     vec![
-        // ---- Catppuccin ----
         catppuccin_mocha(),
         catppuccin_macchiato(),
         catppuccin_frappe(),
         catppuccin_latte(),
-        // ---- One Dark ----
         onedark_dark(),
         onedark_light(),
-        // ---- Rose Pine ----
         rosepine_main(),
         rosepine_moon(),
         rosepine_dawn(),
-        // ---- Gruvbox ----
         gruvbox_dark(),
         gruvbox_light(),
     ]
 }
 
-// ---- Catppuccin Mocha ----
 fn catppuccin_mocha() -> Theme {
     Theme {
         name:   "Catppuccin Mocha".into(),
@@ -344,7 +327,6 @@ fn catppuccin_latte() -> Theme {
     }
 }
 
-// ---- One Dark ----
 fn onedark_dark() -> Theme {
     Theme {
         name:   "One Dark".into(),
@@ -409,7 +391,6 @@ fn onedark_light() -> Theme {
     }
 }
 
-// ---- Rose Pine ----
 fn rosepine_main() -> Theme {
     Theme {
         name:   "Rose Pine".into(),
@@ -506,7 +487,6 @@ fn rosepine_dawn() -> Theme {
     }
 }
 
-// ---- Gruvbox ----
 fn gruvbox_dark() -> Theme {
     Theme {
         name:   "Gruvbox Dark".into(),
@@ -570,10 +550,6 @@ fn gruvbox_light() -> Theme {
         },
     }
 }
-
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
 
 /// Persistent configuration saved to ~/.config/viar/config.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]

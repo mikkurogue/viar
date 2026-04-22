@@ -1,47 +1,68 @@
 use eframe::egui;
 
-use crate::types::{
-    ConnectedTab,
-    ViarApp,
+use crate::{
+    types::{
+        ConnectedTab,
+        ViarApp,
+    },
+    util::themed_tab,
 };
 
 impl ViarApp {
     pub fn render_connected(&mut self, ui: &mut egui::Ui) {
+        let theme = self.theme.clone();
         // Top tab bar
         ui.horizontal(|ui| {
             ui.add_space(8.0);
-            if ui
-                .selectable_label(self.active_tab == ConnectedTab::Keymap, "Keymap")
-                .clicked()
+            if themed_tab(
+                ui,
+                self.active_tab == ConnectedTab::Keymap,
+                "Keymap",
+                &theme,
+            )
+            .clicked()
             {
                 self.active_tab = ConnectedTab::Keymap;
             }
             if self.lighting_data.is_some()
-                && ui
-                    .selectable_label(self.active_tab == ConnectedTab::Lighting, "Lighting")
-                    .clicked()
+                && themed_tab(
+                    ui,
+                    self.active_tab == ConnectedTab::Lighting,
+                    "Lighting",
+                    &theme,
+                )
+                .clicked()
             {
                 self.active_tab = ConnectedTab::Lighting;
             }
             if self.dynamic_data.is_some() {
-                if ui
-                    .selectable_label(self.active_tab == ConnectedTab::TapDance, "Tap Dance")
-                    .clicked()
+                if themed_tab(
+                    ui,
+                    self.active_tab == ConnectedTab::TapDance,
+                    "Tap Dance",
+                    &theme,
+                )
+                .clicked()
                 {
                     self.active_tab = ConnectedTab::TapDance;
                 }
-                if ui
-                    .selectable_label(self.active_tab == ConnectedTab::Combos, "Combos")
-                    .clicked()
+                if themed_tab(
+                    ui,
+                    self.active_tab == ConnectedTab::Combos,
+                    "Combos",
+                    &theme,
+                )
+                .clicked()
                 {
                     self.active_tab = ConnectedTab::Combos;
                 }
-                if ui
-                    .selectable_label(
-                        self.active_tab == ConnectedTab::KeyOverrides,
-                        "Key Overrides",
-                    )
-                    .clicked()
+                if themed_tab(
+                    ui,
+                    self.active_tab == ConnectedTab::KeyOverrides,
+                    "Key Overrides",
+                    &theme,
+                )
+                .clicked()
                 {
                     self.active_tab = ConnectedTab::KeyOverrides;
                 }
@@ -57,9 +78,13 @@ impl ViarApp {
                     ui.label(&data.layout.name);
                     ui.separator();
                 }
-                if ui
-                    .selectable_label(self.active_tab == ConnectedTab::Settings, "Settings")
-                    .clicked()
+                if themed_tab(
+                    ui,
+                    self.active_tab == ConnectedTab::Settings,
+                    "Settings",
+                    &theme,
+                )
+                .clicked()
                 {
                     self.active_tab = ConnectedTab::Settings;
                 }

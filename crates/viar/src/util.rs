@@ -5,6 +5,28 @@ use via_protocol::{
     KeycodeGroup,
 };
 
+use crate::theme::Theme;
+
+/// Render a tab-style selectable label with proper text contrast.
+/// When selected, uses `text_on_accent` so text is legible against the accent background.
+/// When hovered (not selected), uses `text_on_accent` against the accent hover background.
+pub fn themed_tab(
+    ui: &mut egui::Ui,
+    selected: bool,
+    label: impl Into<egui::WidgetText>,
+    theme: &Theme,
+) -> egui::Response {
+    if selected {
+        // Override text color for selected state to ensure contrast against accent bg
+        ui.visuals_mut().override_text_color = Some(theme.text_on_accent());
+        let resp = ui.selectable_label(true, label);
+        ui.visuals_mut().override_text_color = Some(theme.text_primary());
+        resp
+    } else {
+        ui.selectable_label(false, label)
+    }
+}
+
 /// Convert QMK-style HSV (hue 0-255, sat 0-255, val 0-255) to RGB.
 pub fn hsv_to_rgb(h: u8, s: u8, v: u8) -> (u8, u8, u8) {
     if s == 0 {
@@ -46,26 +68,31 @@ pub fn is_disconnect_error(err: &str) -> bool {
         || lower.contains("broken pipe")
 }
 
-/// Pick a background color based on keycode category.
-pub fn key_bg_color(kc: &Keycode) -> egui::Color32 {
-    match kc.category() {
-        KeycodeCategory::None => egui::Color32::from_rgb(35, 35, 40),
-        KeycodeCategory::Transparent => egui::Color32::from_rgb(35, 35, 40),
-        KeycodeCategory::Basic => egui::Color32::from_rgb(50, 50, 58),
-        KeycodeCategory::Mod => egui::Color32::from_rgb(60, 50, 70),
-        KeycodeCategory::LayerTap => egui::Color32::from_rgb(50, 60, 70),
-        KeycodeCategory::LayerMod => egui::Color32::from_rgb(48, 62, 60),
-        KeycodeCategory::LayerMomentary => egui::Color32::from_rgb(45, 65, 55),
-        KeycodeCategory::LayerToggle => egui::Color32::from_rgb(55, 55, 70),
-        KeycodeCategory::LayerTapToggle => egui::Color32::from_rgb(52, 58, 68),
-        KeycodeCategory::LayerOn => egui::Color32::from_rgb(50, 62, 58),
-        KeycodeCategory::LayerDefault => egui::Color32::from_rgb(48, 58, 62),
-        KeycodeCategory::LayerOneShotLayer => egui::Color32::from_rgb(55, 52, 65),
-        KeycodeCategory::LayerOneShotMod => egui::Color32::from_rgb(58, 50, 65),
-        KeycodeCategory::PersistentDefLayer => egui::Color32::from_rgb(50, 55, 60),
-        KeycodeCategory::ModTap => egui::Color32::from_rgb(65, 55, 50),
-        KeycodeCategory::TapDance => egui::Color32::from_rgb(60, 55, 65),
-        _ => egui::Color32::from_rgb(45, 45, 52),
+pub trait CategoryStyle {
+    fn bg(&self) -> egui::Color32;
+}
+
+impl CategoryStyle for KeycodeCategory {
+    fn bg(&self) -> egui::Color32 {
+        match self {
+            Self::None => egui::Color32::from_rgb(35, 35, 40),
+            Self::Transparent => egui::Color32::from_rgb(35, 35, 40),
+            Self::Basic => egui::Color32::from_rgb(50, 50, 58),
+            Self::Mod => egui::Color32::from_rgb(60, 50, 70),
+            Self::LayerTap => egui::Color32::from_rgb(50, 60, 70),
+            Self::LayerMod => egui::Color32::from_rgb(48, 62, 60),
+            Self::LayerMomentary => egui::Color32::from_rgb(45, 65, 55),
+            Self::LayerToggle => egui::Color32::from_rgb(55, 55, 70),
+            Self::LayerTapToggle => egui::Color32::from_rgb(52, 58, 68),
+            Self::LayerOn => egui::Color32::from_rgb(50, 62, 58),
+            Self::LayerDefault => egui::Color32::from_rgb(48, 58, 62),
+            Self::LayerOneShotLayer => egui::Color32::from_rgb(55, 52, 65),
+            Self::LayerOneShotMod => egui::Color32::from_rgb(58, 50, 65),
+            Self::PersistentDefLayer => egui::Color32::from_rgb(50, 55, 60),
+            Self::ModTap => egui::Color32::from_rgb(65, 55, 50),
+            Self::TapDance => egui::Color32::from_rgb(60, 55, 65),
+            _ => egui::Color32::from_rgb(45, 45, 52),
+        }
     }
 }
 
@@ -97,7 +124,7 @@ pub fn keycode_chip(ui: &mut egui::Ui, label: &str, value: u16, is_active: bool)
         } else if value == 0 {
             egui::Color32::from_rgb(40, 40, 45)
         } else {
-            key_bg_color(&kc)
+            kc.category().bg()
         };
 
         let border = if is_active {
@@ -150,6 +177,7 @@ pub fn shared_keycode_picker(
     selected_group: &mut usize,
     groups: &[KeycodeGroup],
     active_field_label: &str,
+    theme: &Theme,
 ) -> PickerResult {
     let mut result = PickerResult {
         selected: None,
@@ -215,7 +243,7 @@ pub fn shared_keycode_picker(
         for (i, group) in groups.iter().enumerate() {
             let sel = *selected_group == i;
             let label_text = egui::RichText::new(group.name).size(9.5);
-            if ui.selectable_label(sel, label_text).clicked() {
+            if themed_tab(ui, sel, label_text, theme).clicked() {
                 *selected_group = i;
             }
         }
