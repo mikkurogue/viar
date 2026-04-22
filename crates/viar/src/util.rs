@@ -1,5 +1,8 @@
 use eframe::egui;
-use via_protocol::{Keycode, KeycodeCategory};
+use via_protocol::{
+    Keycode,
+    KeycodeCategory,
+};
 
 /// Convert QMK-style HSV (hue 0-255, sat 0-255, val 0-255) to RGB.
 pub fn hsv_to_rgb(h: u8, s: u8, v: u8) -> (u8, u8, u8) {

@@ -1,9 +1,21 @@
 use eframe::egui;
-use tracing::{info, warn};
-use via_protocol::{KeyOverrideEntry, Keycode, ViaProtocol};
+use tracing::{
+    info,
+    warn,
+};
+use via_protocol::{
+    KeyOverrideEntry,
+    Keycode,
+    ViaProtocol,
+};
 
-use crate::types::{StatusMessage, ViarApp};
-use crate::util::is_disconnect_error;
+use crate::{
+    types::{
+        StatusMessage,
+        ViarApp,
+    },
+    util::is_disconnect_error,
+};
 
 /// Modifier flag names for display.
 const MOD_FLAGS: [(u8, &str); 8] = [

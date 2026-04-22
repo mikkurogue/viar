@@ -1,15 +1,26 @@
-use crate::{ViaError, ViaResult, VIA_USAGE, VIA_USAGE_PAGE};
-use tracing::{debug, info, trace, warn};
+use tracing::{
+    debug,
+    info,
+    trace,
+    warn,
+};
+
+use crate::{
+    VIA_USAGE,
+    VIA_USAGE_PAGE,
+    ViaError,
+    ViaResult,
+};
 
 /// Information about a detected VIA-compatible keyboard.
 #[derive(Debug, Clone)]
 pub struct KeyboardInfo {
-    pub vendor_id: u16,
-    pub product_id: u16,
-    pub manufacturer: String,
-    pub product: String,
+    pub vendor_id:     u16,
+    pub product_id:    u16,
+    pub manufacturer:  String,
+    pub product:       String,
     pub serial_number: String,
-    pub path: String,
+    pub path:          String,
 }
 
 impl std::fmt::Display for KeyboardInfo {
@@ -25,7 +36,7 @@ impl std::fmt::Display for KeyboardInfo {
 /// A handle to an opened VIA-compatible keyboard HID device.
 pub struct KeyboardDevice {
     pub info: KeyboardInfo,
-    device: hidapi::HidDevice,
+    device:   hidapi::HidDevice,
 }
 
 impl KeyboardDevice {
@@ -70,12 +81,12 @@ pub fn discover_keyboards(api: &hidapi::HidApi) -> Vec<KeyboardInfo> {
         .device_list()
         .filter(|dev| dev.usage_page() == VIA_USAGE_PAGE && dev.usage() == VIA_USAGE)
         .map(|dev| KeyboardInfo {
-            vendor_id: dev.vendor_id(),
-            product_id: dev.product_id(),
-            manufacturer: dev.manufacturer_string().unwrap_or_default().to_string(),
-            product: dev.product_string().unwrap_or_default().to_string(),
+            vendor_id:     dev.vendor_id(),
+            product_id:    dev.product_id(),
+            manufacturer:  dev.manufacturer_string().unwrap_or_default().to_string(),
+            product:       dev.product_string().unwrap_or_default().to_string(),
             serial_number: dev.serial_number().unwrap_or_default().to_string(),
-            path: dev.path().to_string_lossy().into_owned(),
+            path:          dev.path().to_string_lossy().into_owned(),
         })
         .collect();
 

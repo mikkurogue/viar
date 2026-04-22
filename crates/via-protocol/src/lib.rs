@@ -11,14 +11,44 @@ pub mod layout;
 mod protocol;
 
 pub use command::{
-    ComboEntry, DynamicEntryCounts, KeyOverrideEntry, LightingChannel, LightingProtocol,
-    RgbValueId, TapDanceEntry, ViaCommand, ViaCommandId, VialRgbEffect, VialRgbValueId,
+    ComboEntry,
+    DynamicEntryCounts,
+    KeyOverrideEntry,
+    LightingChannel,
+    LightingProtocol,
+    RgbValueId,
+    TapDanceEntry,
+    ViaCommand,
+    ViaCommandId,
+    VialRgbEffect,
+    VialRgbValueId,
 };
-pub use device::{HidAccessStatus, KeyboardDevice, KeyboardInfo};
-pub use error::{ViaError, ViaResult};
-pub use keycodes::{all_basic_keycodes, keycode_groups, Keycode, KeycodeCategory, KeycodeGroup};
-pub use layout::{parse_vial_definition, KeyPosition, KeyboardLayout};
-pub use protocol::{LightingValues, ViaProtocol, VialRgbInfo};
+pub use device::{
+    HidAccessStatus,
+    KeyboardDevice,
+    KeyboardInfo,
+};
+pub use error::{
+    ViaError,
+    ViaResult,
+};
+pub use keycodes::{
+    Keycode,
+    KeycodeCategory,
+    KeycodeGroup,
+    all_basic_keycodes,
+    keycode_groups,
+};
+pub use layout::{
+    KeyPosition,
+    KeyboardLayout,
+    parse_vial_definition,
+};
+pub use protocol::{
+    LightingValues,
+    ViaProtocol,
+    VialRgbInfo,
+};
 
 /// VIA HID usage page used to identify VIA-enabled keyboards.
 pub const VIA_USAGE_PAGE: u16 = 0xFF60;

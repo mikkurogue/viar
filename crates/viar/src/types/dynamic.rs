@@ -1,4 +1,9 @@
-use via_protocol::{ComboEntry, DynamicEntryCounts, KeyOverrideEntry, TapDanceEntry};
+use via_protocol::{
+    ComboEntry,
+    DynamicEntryCounts,
+    KeyOverrideEntry,
+    TapDanceEntry,
+};
 
 /// Dynamic entry data loaded from the device.
 pub struct DynamicEntryData {

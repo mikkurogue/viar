@@ -1,9 +1,24 @@
 use eframe::egui;
-use tracing::{info, warn};
-use via_protocol::{LightingProtocol, ViaProtocol, VialRgbEffect};
+use tracing::{
+    info,
+    warn,
+};
+use via_protocol::{
+    LightingProtocol,
+    ViaProtocol,
+    VialRgbEffect,
+};
 
-use crate::types::{StatusMessage, ViarApp};
-use crate::util::{hsv_to_rgb, is_disconnect_error};
+use crate::{
+    types::{
+        StatusMessage,
+        ViarApp,
+    },
+    util::{
+        hsv_to_rgb,
+        is_disconnect_error,
+    },
+};
 
 /// Effect category for visual grouping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -653,10 +668,10 @@ impl ViarApp {
         let proto = ViaProtocol::new(dev);
         let lp = lighting.protocol;
         let vals = via_protocol::LightingValues {
-            effect_id: lighting.effect_id,
+            effect_id:  lighting.effect_id,
             brightness: lighting.brightness,
-            speed: lighting.speed,
-            hue: lighting.hue,
+            speed:      lighting.speed,
+            hue:        lighting.hue,
             saturation: lighting.saturation,
         };
 

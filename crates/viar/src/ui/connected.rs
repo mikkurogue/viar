@@ -1,6 +1,9 @@
 use eframe::egui;
 
-use crate::types::{ConnectedTab, ViarApp};
+use crate::types::{
+    ConnectedTab,
+    ViarApp,
+};
 
 impl ViarApp {
     pub fn render_connected(&mut self, ui: &mut egui::Ui) {

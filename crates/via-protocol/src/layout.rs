@@ -3,25 +3,28 @@
 /// A layout describes where each key is physically positioned for rendering,
 /// and maps each visual key to a (row, col) in the keyboard matrix.
 use serde_json::Value;
-use tracing::{debug, warn};
+use tracing::{
+    debug,
+    warn,
+};
 
 /// A single physical key position.
 #[derive(Debug, Clone)]
 pub struct KeyPosition {
     /// X position in key units (1u = one standard key width).
-    pub x: f32,
+    pub x:   f32,
     /// Y position in key units.
-    pub y: f32,
+    pub y:   f32,
     /// Width in key units (default 1.0).
-    pub w: f32,
+    pub w:   f32,
     /// Height in key units (default 1.0).
-    pub h: f32,
+    pub h:   f32,
     /// Rotation angle in degrees (for thumb keys).
-    pub r: f32,
+    pub r:   f32,
     /// Rotation origin X (in key units, relative to layout origin).
-    pub rx: f32,
+    pub rx:  f32,
     /// Rotation origin Y.
-    pub ry: f32,
+    pub ry:  f32,
     /// Matrix row this key maps to.
     pub row: u8,
     /// Matrix column this key maps to.
@@ -61,15 +64,15 @@ impl KeyPosition {
 #[derive(Debug, Clone)]
 pub struct KeyboardLayout {
     /// Display name.
-    pub name: String,
+    pub name:    String,
     /// VID:PID pairs this layout applies to (empty = generic).
     pub vid_pid: Vec<(u16, u16)>,
     /// Number of matrix rows.
-    pub rows: u8,
+    pub rows:    u8,
     /// Number of matrix columns.
-    pub cols: u8,
+    pub cols:    u8,
     /// Physical key positions.
-    pub keys: Vec<KeyPosition>,
+    pub keys:    Vec<KeyPosition>,
 }
 
 impl KeyboardLayout {

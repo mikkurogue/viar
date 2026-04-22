@@ -1,9 +1,21 @@
 use eframe::egui;
-use tracing::{info, warn};
-use via_protocol::{ComboEntry, Keycode, ViaProtocol};
+use tracing::{
+    info,
+    warn,
+};
+use via_protocol::{
+    ComboEntry,
+    Keycode,
+    ViaProtocol,
+};
 
-use crate::types::{StatusMessage, ViarApp};
-use crate::util::is_disconnect_error;
+use crate::{
+    types::{
+        StatusMessage,
+        ViarApp,
+    },
+    util::is_disconnect_error,
+};
 
 impl ViarApp {
     pub fn render_combos_tab(&mut self, ui: &mut egui::Ui) {

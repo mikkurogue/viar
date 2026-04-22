@@ -82,7 +82,8 @@ impl Keycode {
             KeycodeCategory::LayerMod => {
                 // LM(layer, mod): bits [12:8] = mod, bits [7:4] = layer...
                 // Actually: QK_LAYER_MOD = 0x5000, layer in bits [8:4], mods in bits [3:0] shifted
-                // QMK: #define LM(layer, mod) (QK_LAYER_MOD | (((layer) & 0xF) << 4) | ((mod) & 0xF))
+                // QMK: #define LM(layer, mod) (QK_LAYER_MOD | (((layer) & 0xF) << 4) | ((mod) &
+                // 0xF))
                 let layer = (raw >> 4) & 0xF;
                 let mods = raw & 0xF;
                 let mod_str = mod_mask_to_string(mods as u8);
@@ -311,7 +312,7 @@ fn mod_mask_to_string(mods: u8) -> String {
     if mods & 0x08 != 0 {
         parts.push("G");
     } // GUI
-      // Right modifiers (bit 4 = use right side)
+    // Right modifiers (bit 4 = use right side)
     if mods & 0x10 != 0 {
         // Right-side flag — modify the labels
         parts.iter_mut().for_each(|p| {
@@ -589,7 +590,7 @@ pub fn all_basic_keycodes() -> Vec<Keycode> {
 
 /// A named group of keycodes for the picker UI.
 pub struct KeycodeGroup {
-    pub name: &'static str,
+    pub name:  &'static str,
     pub codes: Vec<Keycode>,
 }
 
@@ -597,15 +598,15 @@ pub struct KeycodeGroup {
 pub fn keycode_groups() -> Vec<KeycodeGroup> {
     vec![
         KeycodeGroup {
-            name: "Letters",
+            name:  "Letters",
             codes: (0x04..=0x1Du16).map(Keycode).collect(),
         },
         KeycodeGroup {
-            name: "Numbers",
+            name:  "Numbers",
             codes: (0x1E..=0x27u16).map(Keycode).collect(),
         },
         KeycodeGroup {
-            name: "Symbols",
+            name:  "Symbols",
             codes: vec![
                 Keycode(0x2D),
                 Keycode(0x2E),
@@ -621,7 +622,7 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
             ],
         },
         KeycodeGroup {
-            name: "Shifted",
+            name:  "Shifted",
             codes: vec![
                 // S(1) through S(0)
                 Keycode(0x021E),
@@ -649,7 +650,7 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
             ],
         },
         KeycodeGroup {
-            name: "Editing",
+            name:  "Editing",
             codes: vec![
                 Keycode(0x28), // Enter
                 Keycode(0x29), // Esc
@@ -662,7 +663,7 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
             ],
         },
         KeycodeGroup {
-            name: "Navigation",
+            name:  "Navigation",
             codes: vec![
                 Keycode(0x4A), // Home
                 Keycode(0x4D), // End
@@ -675,15 +676,15 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
             ],
         },
         KeycodeGroup {
-            name: "F-Keys",
+            name:  "F-Keys",
             codes: (0x3A..=0x45u16).map(Keycode).collect(),
         },
         KeycodeGroup {
-            name: "Modifiers",
+            name:  "Modifiers",
             codes: (0xE0..=0xE7u16).map(Keycode).collect(),
         },
         KeycodeGroup {
-            name: "Media",
+            name:  "Media",
             codes: vec![
                 Keycode(0xA8), // Mute
                 Keycode(0xA9), // VolUp
@@ -691,7 +692,7 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
             ],
         },
         KeycodeGroup {
-            name: "Layers",
+            name:  "Layers",
             codes: {
                 let mut v = Vec::new();
                 // MO(0)..MO(9)
@@ -722,11 +723,11 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
             },
         },
         KeycodeGroup {
-            name: "Numpad",
+            name:  "Numpad",
             codes: (0x53..=0x63u16).map(Keycode).collect(),
         },
         KeycodeGroup {
-            name: "Special",
+            name:  "Special",
             codes: vec![
                 Keycode(0x0000), // NONE
                 Keycode(0x0001), // TRNS

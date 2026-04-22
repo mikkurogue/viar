@@ -1,9 +1,24 @@
 use eframe::egui;
-use tracing::{info, warn};
-use via_protocol::{Keycode, ViaProtocol};
+use tracing::{
+    info,
+    warn,
+};
+use via_protocol::{
+    Keycode,
+    ViaProtocol,
+};
 
-use crate::types::{KeyChange, StatusMessage, ViarApp};
-use crate::util::{is_disconnect_error, key_bg_color};
+use crate::{
+    types::{
+        KeyChange,
+        StatusMessage,
+        ViarApp,
+    },
+    util::{
+        is_disconnect_error,
+        key_bg_color,
+    },
+};
 
 impl ViarApp {
     pub fn render_keymap_tab(&mut self, ui: &mut egui::Ui) {

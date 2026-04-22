@@ -5,7 +5,6 @@ mod util;
 
 use eframe::egui;
 use tracing::info;
-
 use types::ViarApp;
 
 fn main() -> eframe::Result<()> {

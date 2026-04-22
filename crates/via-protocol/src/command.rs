@@ -89,28 +89,24 @@ pub enum LightingProtocol {
     VialRgb,
 }
 
-// ========================================================================
-// Vial Dynamic Entry types
-// ========================================================================
-
 /// Tap Dance entry (10 bytes, matches firmware struct layout).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TapDanceEntry {
-    pub on_tap: u16,
-    pub on_hold: u16,
+    pub on_tap:        u16,
+    pub on_hold:       u16,
     pub on_double_tap: u16,
-    pub on_tap_hold: u16,
-    pub tapping_term: u16,
+    pub on_tap_hold:   u16,
+    pub tapping_term:  u16,
 }
 
 impl TapDanceEntry {
     pub fn from_bytes(data: &[u8]) -> Self {
         Self {
-            on_tap: u16::from_le_bytes([data[0], data[1]]),
-            on_hold: u16::from_le_bytes([data[2], data[3]]),
+            on_tap:        u16::from_le_bytes([data[0], data[1]]),
+            on_hold:       u16::from_le_bytes([data[2], data[3]]),
             on_double_tap: u16::from_le_bytes([data[4], data[5]]),
-            on_tap_hold: u16::from_le_bytes([data[6], data[7]]),
-            tapping_term: u16::from_le_bytes([data[8], data[9]]),
+            on_tap_hold:   u16::from_le_bytes([data[6], data[7]]),
+            tapping_term:  u16::from_le_bytes([data[8], data[9]]),
         }
     }
 
@@ -132,14 +128,14 @@ impl TapDanceEntry {
 /// Combo entry (10 bytes, matches firmware struct layout).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ComboEntry {
-    pub input: [u16; 4],
+    pub input:  [u16; 4],
     pub output: u16,
 }
 
 impl ComboEntry {
     pub fn from_bytes(data: &[u8]) -> Self {
         Self {
-            input: [
+            input:  [
                 u16::from_le_bytes([data[0], data[1]]),
                 u16::from_le_bytes([data[2], data[3]]),
                 u16::from_le_bytes([data[4], data[5]]),
@@ -220,10 +216,10 @@ impl KeyOverrideEntry {
 /// Dynamic entry counts returned by the keyboard.
 #[derive(Debug, Clone, Default)]
 pub struct DynamicEntryCounts {
-    pub tap_dance: u8,
-    pub combo: u8,
+    pub tap_dance:    u8,
+    pub combo:        u8,
     pub key_override: u8,
-    pub alt_repeat: u8,
+    pub alt_repeat:   u8,
 }
 
 /// VialRGB sub-command IDs (used as data[1] with CustomGetValue/CustomSetValue).
@@ -235,7 +231,9 @@ pub enum VialRgbCmd {
     GetInfo = 0x40,
     GetModeOrSetMode = 0x41,
     GetSupportedOrDirectFastSet = 0x42,
+    #[allow(dead_code)]
     GetNumLeds = 0x43,
+    #[allow(dead_code)]
     GetLedInfo = 0x44,
 }
 
@@ -384,7 +382,7 @@ impl ViaCommandId {
 /// A VIA command to be sent to the keyboard.
 #[derive(Debug, Clone)]
 pub struct ViaCommand {
-    pub id: ViaCommandId,
+    pub id:   ViaCommandId,
     pub data: Vec<u8>,
 }
 
@@ -416,8 +414,6 @@ impl ViaCommand {
         buf[2..2 + copy_len].copy_from_slice(&self.data[..copy_len]);
         buf
     }
-
-    // -- Convenience constructors --
 
     pub fn get_protocol_version() -> Self {
         Self::simple(ViaCommandId::GetProtocolVersion)
@@ -461,8 +457,6 @@ impl ViaCommand {
         Self::simple(ViaCommandId::DynamicKeymapMacroGetBufferSize)
     }
 
-    // -- Lighting commands --
-
     /// Get a lighting value. channel = LightingChannel, value_id = RgbValueId.
     pub fn get_lighting_value(channel: u8, value_id: u8) -> Self {
         Self::with_data(ViaCommandId::CustomGetValue, &[channel, value_id])
@@ -481,8 +475,6 @@ impl ViaCommand {
         Self::with_data(ViaCommandId::CustomSave, &[channel])
     }
 
-    // -- Vial-style lighting commands (no channel byte) --
-
     /// Get a Vial lighting value. Format: `[cmd_id, value_id]`
     pub fn vial_get_lighting_value(value_id: u8) -> Self {
         Self::with_data(ViaCommandId::CustomGetValue, &[value_id])
@@ -499,8 +491,6 @@ impl ViaCommand {
     pub fn vial_custom_save() -> Self {
         Self::simple(ViaCommandId::CustomSave)
     }
-
-    // -- VialRGB commands --
 
     /// VialRGB: get info. Response: [cmd, 0x40, version_lo, version_hi, max_brightness]
     pub fn vialrgb_get_info() -> Self {
@@ -531,8 +521,6 @@ impl ViaCommand {
         )
     }
 
-    // -- Vial protocol commands (0xFE prefix) --
-
     /// Vial: get keyboard ID. Response: [0xFE, vial_protocol_version(u32 LE), uid(8 bytes)]
     pub fn vial_get_keyboard_id() -> Self {
         Self::with_data(ViaCommandId::VialPrefix, &[0x00])
@@ -558,7 +546,8 @@ impl ViaCommand {
     }
 
     /// Vial: get tap dance entry at index.
-    /// Response: [status, <10 bytes: on_tap(u16 LE), on_hold(u16 LE), on_double_tap(u16 LE), on_tap_hold(u16 LE), tapping_term(u16 LE)>]
+    /// Response: [status, <10 bytes: on_tap(u16 LE), on_hold(u16 LE), on_double_tap(u16 LE),
+    /// on_tap_hold(u16 LE), tapping_term(u16 LE)>]
     pub fn vial_tap_dance_get(idx: u8) -> Self {
         Self::with_data(ViaCommandId::VialPrefix, &[0x0D, 0x01, idx])
     }
@@ -584,7 +573,8 @@ impl ViaCommand {
     }
 
     /// Vial: get key override entry at index.
-    /// Response: [status, <10 bytes: trigger(u16 LE), replacement(u16 LE), layers(u16 LE), trigger_mods, negative_mod_mask, suppressed_mods, options>]
+    /// Response: [status, <10 bytes: trigger(u16 LE), replacement(u16 LE), layers(u16 LE),
+    /// trigger_mods, negative_mod_mask, suppressed_mods, options>]
     pub fn vial_key_override_get(idx: u8) -> Self {
         Self::with_data(ViaCommandId::VialPrefix, &[0x0D, 0x05, idx])
     }

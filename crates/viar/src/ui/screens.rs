@@ -1,6 +1,9 @@
 use eframe::egui;
 
-use crate::types::{AppScreen, ViarApp};
+use crate::types::{
+    AppScreen,
+    ViarApp,
+};
 
 impl ViarApp {
     pub fn render_detecting(&self, ui: &mut egui::Ui) {

@@ -1,7 +1,16 @@
-use via_protocol::{KeyboardDevice, KeyboardInfo, KeycodeGroup};
+use via_protocol::{
+    KeyboardDevice,
+    KeyboardInfo,
+    KeycodeGroup,
+};
 
 use super::{
-    AppScreen, ConfirmDialog, ConnectedTab, DynamicEntryData, KeymapData, LightingData,
+    AppScreen,
+    ConfirmDialog,
+    ConnectedTab,
+    DynamicEntryData,
+    KeymapData,
+    LightingData,
     StatusMessage,
 };
 

@@ -1,12 +1,24 @@
+use tracing::{
+    debug,
+    info,
+};
+
 use crate::{
+    ViaCommand,
+    ViaError,
+    ViaResult,
     command::{
-        ComboEntry, DynamicEntryCounts, KeyOverrideEntry, LightingChannel, LightingProtocol,
-        RgbValueId, TapDanceEntry, VialRgbValueId,
+        ComboEntry,
+        DynamicEntryCounts,
+        KeyOverrideEntry,
+        LightingChannel,
+        LightingProtocol,
+        RgbValueId,
+        TapDanceEntry,
+        VialRgbValueId,
     },
     device::KeyboardDevice,
-    ViaCommand, ViaError, ViaResult,
 };
-use tracing::{debug, info};
 
 /// High-level VIA protocol interface for a connected keyboard.
 pub struct ViaProtocol<'a> {
@@ -126,10 +138,6 @@ impl<'a> ViaProtocol<'a> {
         Ok(u16::from_be_bytes([resp[1], resp[2]]))
     }
 
-    // ========================================================================
-    // Vial firmware — keyboard definition fetching
-    // ========================================================================
-
     /// Get the Vial keyboard ID, protocol version, and UID.
     /// Returns (vial_protocol_version, uid_bytes).
     pub fn vial_get_keyboard_id(&self) -> ViaResult<(u32, [u8; 8])> {
@@ -221,10 +229,6 @@ impl<'a> ViaProtocol<'a> {
         Ok(json)
     }
 
-    // ========================================================================
-    // Vial Dynamic Entries (Tap Dance, Combos, Key Overrides)
-    // ========================================================================
-
     /// Get the counts of dynamic entries supported by the keyboard.
     pub fn get_dynamic_entry_counts(&self) -> ViaResult<DynamicEntryCounts> {
         let resp = self
@@ -233,10 +237,10 @@ impl<'a> ViaProtocol<'a> {
         // Response: firmware overwrites buffer starting at 0
         // [td_count, combo_count, ko_count, arep_count, ...]
         let counts = DynamicEntryCounts {
-            tap_dance: resp[0],
-            combo: resp[1],
+            tap_dance:    resp[0],
+            combo:        resp[1],
             key_override: resp[2],
-            alt_repeat: resp[3],
+            alt_repeat:   resp[3],
         };
         info!(
             tap_dance = counts.tap_dance,
@@ -331,10 +335,6 @@ impl<'a> ViaProtocol<'a> {
         }
         Ok(entries)
     }
-
-    // ========================================================================
-    // Lighting — unified API
-    // ========================================================================
 
     /// Detect the lighting protocol supported by the keyboard.
     /// Tries VialRGB first, then Vial legacy, then VIA channels.
@@ -471,10 +471,6 @@ impl<'a> ViaProtocol<'a> {
         })
     }
 
-    // ========================================================================
-    // Internal: VialRGB
-    // ========================================================================
-
     fn try_vialrgb(&self) -> bool {
         match self.device.send_command(&ViaCommand::vialrgb_get_info()) {
             Ok(resp) => {
@@ -524,10 +520,6 @@ impl<'a> ViaProtocol<'a> {
             saturation: sat,
         })
     }
-
-    // ========================================================================
-    // Internal: Vial Legacy (no channel, 0x80+ value IDs)
-    // ========================================================================
 
     fn try_vial_legacy(&self) -> bool {
         let cmd = ViaCommand::vial_get_lighting_value(VialRgbValueId::Brightness as u8);
@@ -620,10 +612,6 @@ impl<'a> ViaProtocol<'a> {
             .send_command(&ViaCommand::vial_set_lighting_value(value_id, payload))?;
         Ok(())
     }
-
-    // ========================================================================
-    // Internal: Stock VIA (channel-based)
-    // ========================================================================
 
     fn try_via_channels(&self) -> Option<LightingProtocol> {
         let channels = [
@@ -748,10 +736,10 @@ impl<'a> ViaProtocol<'a> {
 pub struct LightingValues {
     /// Effect ID — for VialRGB this is a 16-bit VialRGB effect ID,
     /// for VIA/Vial legacy this is an 8-bit QMK effect index.
-    pub effect_id: u16,
+    pub effect_id:  u16,
     pub brightness: u8,
-    pub speed: u8,
-    pub hue: u8,
+    pub speed:      u8,
+    pub hue:        u8,
     pub saturation: u8,
 }
 
@@ -759,5 +747,5 @@ pub struct LightingValues {
 #[derive(Debug, Clone)]
 pub struct VialRgbInfo {
     pub protocol_version: u16,
-    pub max_brightness: u8,
+    pub max_brightness:   u8,
 }

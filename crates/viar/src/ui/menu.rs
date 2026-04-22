@@ -1,7 +1,12 @@
 use eframe::egui;
 use tracing::debug;
 
-use crate::types::{AppScreen, ConfirmAction, ConfirmDialog, ViarApp};
+use crate::types::{
+    AppScreen,
+    ConfirmAction,
+    ConfirmDialog,
+    ViarApp,
+};
 
 impl ViarApp {
     /// Render the top menu bar.

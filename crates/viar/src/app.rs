@@ -1,10 +1,23 @@
 use eframe::egui;
-use tracing::{debug, info, warn};
+use tracing::{
+    debug,
+    info,
+    warn,
+};
 use via_protocol::{
-    device::{check_hid_permissions, discover_keyboards},
+    HidAccessStatus,
+    KeyboardDevice,
+    LightingProtocol,
+    ViaProtocol,
+    device::{
+        check_hid_permissions,
+        discover_keyboards,
+    },
     keycode_groups,
-    layout::{generic_layout, parse_vial_definition},
-    HidAccessStatus, KeyboardDevice, LightingProtocol, ViaProtocol,
+    layout::{
+        generic_layout,
+        parse_vial_definition,
+    },
 };
 
 use crate::types::*;
