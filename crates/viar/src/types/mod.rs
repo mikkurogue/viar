@@ -17,4 +17,7 @@ pub use keymap::{
     KeymapData,
 };
 pub use lighting::LightingData;
-pub use state::ViarApp;
+pub use state::{
+    DetectResult,
+    ViarApp,
+};

@@ -1,3 +1,5 @@
+use std::sync::mpsc;
+
 use via_protocol::{
     KeyboardDevice,
     KeyboardInfo,
@@ -13,6 +15,17 @@ use super::{
     LightingData,
     StatusMessage,
 };
+
+/// Result of background HID detection.
+pub enum DetectResult {
+    Ok {
+        api:       hidapi::HidApi,
+        keyboards: Vec<KeyboardInfo>,
+    },
+    NoPermission,
+    NoViaDevices,
+    InitFailed(String),
+}
 
 /// The main application state.
 pub struct ViarApp {
@@ -35,4 +48,6 @@ pub struct ViarApp {
     pub lighting_data: Option<LightingData>,
     /// Dynamic entries (tap dance, combos, key overrides)
     pub dynamic_data: Option<DynamicEntryData>,
+    /// Receiver for background HID detection result
+    pub detect_rx: Option<mpsc::Receiver<DetectResult>>,
 }

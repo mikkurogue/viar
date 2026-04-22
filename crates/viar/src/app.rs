@@ -24,7 +24,7 @@ use crate::types::*;
 
 impl ViarApp {
     pub fn new() -> Self {
-        let mut app = Self {
+        Self {
             hid_api: None,
             keyboards: Vec::new(),
             connected_device: None,
@@ -38,9 +38,8 @@ impl ViarApp {
             active_tab: ConnectedTab::Keymap,
             lighting_data: None,
             dynamic_data: None,
-        };
-        app.detect();
-        app
+            detect_rx: None,
+        }
     }
 
     pub fn set_status(&mut self, msg: StatusMessage) {
@@ -49,12 +48,33 @@ impl ViarApp {
 
     pub fn detect(&mut self) {
         info!("detecting keyboards");
-        match check_hid_permissions() {
-            HidAccessStatus::InitFailed(msg) => {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.detect_rx = Some(rx);
+        std::thread::spawn(move || {
+            let result = match check_hid_permissions() {
+                HidAccessStatus::InitFailed(msg) => DetectResult::InitFailed(msg),
+                HidAccessStatus::NoPermission => DetectResult::NoPermission,
+                HidAccessStatus::NoViaDevices => DetectResult::NoViaDevices,
+                HidAccessStatus::Ok => match hidapi::HidApi::new() {
+                    Ok(api) => {
+                        let keyboards = discover_keyboards(&api);
+                        DetectResult::Ok { api, keyboards }
+                    }
+                    Err(e) => DetectResult::InitFailed(format!("HID init failed: {e}")),
+                },
+            };
+            let _ = tx.send(result);
+        });
+    }
+
+    /// Process the result of background HID detection.
+    fn handle_detect_result(&mut self, result: DetectResult) {
+        match result {
+            DetectResult::InitFailed(msg) => {
                 warn!(error = %msg, "HID init failed");
                 self.screen = AppScreen::NoPermission(msg);
             }
-            HidAccessStatus::NoPermission => {
+            DetectResult::NoPermission => {
                 warn!("no HID devices visible — likely permission issue");
                 self.screen = AppScreen::NoPermission(
                     "No permission to access HID devices without root.\n\
@@ -63,24 +83,19 @@ impl ViarApp {
                         .to_string(),
                 );
             }
-            HidAccessStatus::NoViaDevices => {
+            DetectResult::NoViaDevices => {
                 info!("no VIA keyboards found");
                 self.screen = AppScreen::NoKeyboards;
             }
-            HidAccessStatus::Ok => match hidapi::HidApi::new() {
-                Ok(api) => {
-                    self.keyboards = discover_keyboards(&api);
-                    self.hid_api = Some(api);
-                    if self.keyboards.len() == 1 {
-                        self.connect_to_keyboard(0);
-                    } else {
-                        self.screen = AppScreen::SelectKeyboard;
-                    }
+            DetectResult::Ok { api, keyboards } => {
+                self.keyboards = keyboards;
+                self.hid_api = Some(api);
+                if self.keyboards.len() == 1 {
+                    self.connect_to_keyboard(0);
+                } else {
+                    self.screen = AppScreen::SelectKeyboard;
                 }
-                Err(e) => {
-                    self.screen = AppScreen::NoPermission(format!("HID init failed: {e}"));
-                }
-            },
+            }
         }
     }
 
@@ -346,7 +361,20 @@ impl eframe::App for ViarApp {
         self.render_confirm_dialog(&ctx);
 
         egui::CentralPanel::default().show_inside(ui, |ui| match &self.screen {
-            AppScreen::Detecting => self.render_detecting(ui),
+            AppScreen::Detecting => {
+                self.render_detecting(ui);
+                if self.detect_rx.is_none() {
+                    self.detect();
+                }
+                if let Some(rx) = &self.detect_rx {
+                    if let Ok(result) = rx.try_recv() {
+                        self.detect_rx = None;
+                        self.handle_detect_result(result);
+                    } else {
+                        ctx.request_repaint();
+                    }
+                }
+            }
             AppScreen::NoPermission(_) => self.render_no_permission(ui),
             AppScreen::NoKeyboards => self.render_no_keyboards(ui),
             AppScreen::SelectKeyboard => self.render_select_keyboard(ui),
