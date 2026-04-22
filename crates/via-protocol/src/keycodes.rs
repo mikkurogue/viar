@@ -68,6 +68,50 @@ impl Keycode {
         }
     }
 
+    /// For dual-function keys (mod-tap, layer-tap, etc.), return separate
+    /// tap and hold labels for split rendering on keycaps.
+    /// Returns `Some((tap_label, hold_label))` or `None` for simple keys.
+    pub fn dual_labels(self) -> Option<(String, String)> {
+        let raw = self.0;
+        match self.category() {
+            KeycodeCategory::ModTap => {
+                let mods = (raw >> 8) & 0x1F;
+                let kc = raw & 0xFF;
+                let tap = basic_keycode_name(kc).unwrap_or("??").to_string();
+                let hold = mod_mask_to_string(mods as u8);
+                Some((tap, hold))
+            }
+            KeycodeCategory::LayerTap => {
+                let layer = (raw >> 8) & 0x0F;
+                let kc = raw & 0xFF;
+                let tap = basic_keycode_name(kc).unwrap_or("??").to_string();
+                let hold = format!("LT{layer}");
+                Some((tap, hold))
+            }
+            KeycodeCategory::LayerMod => {
+                let layer = (raw >> 4) & 0xF;
+                let mods = raw & 0xF;
+                let hold = mod_mask_to_string(mods as u8);
+                let tap = format!("LM{layer}");
+                Some((tap, hold))
+            }
+            KeycodeCategory::LayerTapToggle => {
+                let layer = raw & 0x1F;
+                Some((format!("TT{layer}"), format!("L{layer}")))
+            }
+            KeycodeCategory::LayerOneShotLayer => {
+                let layer = raw & 0x1F;
+                Some(("OSL".to_string(), format!("L{layer}")))
+            }
+            KeycodeCategory::LayerOneShotMod => {
+                let mods = (raw & 0x1F) as u8;
+                let hold = mod_mask_to_string(mods);
+                Some(("OSM".to_string(), hold))
+            }
+            _ => None,
+        }
+    }
+
     /// Decode a complex (non-basic) keycode into a descriptive string.
     fn decode_complex(self) -> String {
         let raw = self.0;
@@ -725,6 +769,10 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
         KeycodeGroup {
             name:  "Numpad",
             codes: (0x53..=0x63u16).map(Keycode).collect(),
+        },
+        KeycodeGroup {
+            name:  "Tap Dance",
+            codes: (0..32u16).map(|i| Keycode(0x5700 | i)).collect(),
         },
         KeycodeGroup {
             name:  "Special",

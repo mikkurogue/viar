@@ -20,10 +20,18 @@ use via_protocol::{
     },
 };
 
-use crate::types::*;
+use crate::{
+    theme::{
+        load_config,
+        resolve_theme,
+    },
+    types::*,
+};
 
 impl ViarApp {
     pub fn new() -> Self {
+        let config = load_config();
+        let theme = resolve_theme(&config.theme);
         Self {
             hid_api: None,
             keyboards: Vec::new(),
@@ -39,6 +47,8 @@ impl ViarApp {
             lighting_data: None,
             dynamic_data: None,
             detect_rx: None,
+            config,
+            theme,
         }
     }
 
@@ -332,6 +342,9 @@ impl ViarApp {
 
 impl eframe::App for ViarApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Apply theme
+        self.theme.apply(ctx);
+
         // Expire status messages
         if let Some(ref s) = self.status
             && s.is_expired()

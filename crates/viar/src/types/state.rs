@@ -15,6 +15,10 @@ use super::{
     LightingData,
     StatusMessage,
 };
+use crate::theme::{
+    Theme,
+    ViarConfig,
+};
 
 /// Result of background HID detection.
 pub enum DetectResult {
@@ -50,4 +54,8 @@ pub struct ViarApp {
     pub dynamic_data: Option<DynamicEntryData>,
     /// Receiver for background HID detection result
     pub detect_rx: Option<mpsc::Receiver<DetectResult>>,
+    /// Persistent config
+    pub config: ViarConfig,
+    /// Active theme
+    pub theme: Theme,
 }

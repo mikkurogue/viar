@@ -16,6 +16,7 @@ pub enum ConnectedTab {
     TapDance,
     Combos,
     KeyOverrides,
+    Settings,
 }
 
 /// Status message shown temporarily after an action.

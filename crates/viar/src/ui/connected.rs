@@ -47,6 +47,7 @@ impl ViarApp {
                 }
             }
 
+            // Settings always available, pushed to the right
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if let Some(ver) = self.protocol_version {
                     ui.label(format!("VIA v{ver}"));
@@ -54,6 +55,13 @@ impl ViarApp {
                 }
                 if let Some(data) = &self.keymap_data {
                     ui.label(&data.layout.name);
+                    ui.separator();
+                }
+                if ui
+                    .selectable_label(self.active_tab == ConnectedTab::Settings, "Settings")
+                    .clicked()
+                {
+                    self.active_tab = ConnectedTab::Settings;
                 }
             });
         });
@@ -66,6 +74,7 @@ impl ViarApp {
             ConnectedTab::TapDance => self.render_tap_dance_tab(ui),
             ConnectedTab::Combos => self.render_combos_tab(ui),
             ConnectedTab::KeyOverrides => self.render_key_overrides_tab(ui),
+            ConnectedTab::Settings => self.render_settings_tab(ui),
         }
     }
 }

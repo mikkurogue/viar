@@ -11,10 +11,16 @@ use via_protocol::{
 
 use crate::{
     types::{
+        ActiveKeycodeField,
         StatusMessage,
+        TapDanceField,
         ViarApp,
     },
-    util::is_disconnect_error,
+    util::{
+        is_disconnect_error,
+        keycode_chip,
+        shared_keycode_picker,
+    },
 };
 
 impl ViarApp {
@@ -34,215 +40,259 @@ impl ViarApp {
             return;
         }
 
-        ui.add_space(12.0);
+        // Clone state needed for rendering
+        let entries: Vec<(usize, TapDanceEntry)> = dynamic
+            .tap_dances
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (i, e.clone()))
+            .collect();
+        let editing = dynamic.editing_tap_dance;
+        let active_field = dynamic.active_field.clone();
 
-        let max_width = 600.0_f32.min(ui.available_width() - 40.0);
-        ui.vertical_centered(|ui| {
-            ui.set_max_width(max_width);
+        // Split layout: list on left, editor on right
+        egui::Panel::left("td_list_panel")
+            .resizable(true)
+            .default_size(180.0)
+            .min_size(140.0)
+            .max_size(280.0)
+            .show_inside(ui, |ui| {
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new("Tap Dance")
+                        .size(16.0)
+                        .strong()
+                        .color(egui::Color32::from_rgb(200, 200, 215)),
+                );
+                ui.label(
+                    egui::RichText::new(format!("{count} slots"))
+                        .size(11.0)
+                        .color(egui::Color32::from_rgb(120, 120, 135)),
+                );
+                ui.add_space(8.0);
+                ui.separator();
 
-            ui.heading("Tap Dance");
-            ui.add_space(4.0);
-            ui.label(
-                egui::RichText::new(format!("{count} slots"))
-                    .size(12.0)
-                    .color(egui::Color32::from_rgb(140, 140, 155)),
-            );
-            ui.add_space(16.0);
-        });
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for (idx, entry) in &entries {
+                        let is_selected = editing == Some(*idx);
+                        let is_empty = entry.is_empty();
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.set_max_width(max_width);
-            ui.vertical_centered(|ui| {
-                ui.set_max_width(max_width);
-                // We need to clone data out to avoid borrow issues
-                let Some(dynamic) = self.dynamic_data.as_ref() else {
-                    return;
-                };
-                let entries: Vec<(usize, TapDanceEntry)> = dynamic
-                    .tap_dances
-                    .iter()
-                    .enumerate()
-                    .map(|(i, e)| (i, e.clone()))
-                    .collect();
-                let editing = dynamic.editing_tap_dance;
-
-                for (idx, entry) in &entries {
-                    let is_editing = editing == Some(*idx);
-                    let is_empty = entry.is_empty();
-
-                    let frame = egui::Frame::default()
-                        .inner_margin(egui::Margin::same(12))
-                        .outer_margin(egui::Margin::symmetric(0, 4))
-                        .corner_radius(egui::CornerRadius::same(6))
-                        .fill(if is_editing {
-                            egui::Color32::from_rgb(40, 45, 55)
+                        let bg = if is_selected {
+                            egui::Color32::from_rgb(45, 55, 75)
                         } else {
-                            egui::Color32::from_rgb(30, 30, 35)
-                        })
-                        .stroke(egui::Stroke::new(
-                            1.0,
-                            if is_editing {
-                                egui::Color32::from_rgb(80, 120, 180)
-                            } else {
-                                egui::Color32::from_rgb(50, 50, 55)
-                            },
-                        ));
+                            egui::Color32::TRANSPARENT
+                        };
 
-                    frame.show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(
-                                egui::RichText::new(format!("TD({idx})"))
-                                    .monospace()
-                                    .strong()
-                                    .color(egui::Color32::from_rgb(180, 180, 200)),
-                            );
+                        let frame = egui::Frame::default()
+                            .inner_margin(egui::Margin::same(6))
+                            .corner_radius(egui::CornerRadius::same(4))
+                            .fill(bg);
 
-                            if is_empty {
-                                ui.label(
-                                    egui::RichText::new("(empty)")
-                                        .italics()
-                                        .color(egui::Color32::from_rgb(100, 100, 110)),
-                                );
-                            }
-
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if is_editing {
-                                        if ui.button("Close").clicked()
-                                            && let Some(dynamic) = self.dynamic_data.as_mut()
-                                        {
-                                            dynamic.editing_tap_dance = None;
-                                        }
-                                    } else if ui.button("Edit").clicked()
-                                        && let Some(dynamic) = self.dynamic_data.as_mut()
-                                    {
-                                        dynamic.editing_tap_dance = Some(*idx);
-                                    }
-                                },
-                            );
-                        });
-
-                        if is_editing {
-                            ui.add_space(8.0);
-                            let mut changed = false;
-                            let Some(dynamic) = self.dynamic_data.as_mut() else {
-                                return;
-                            };
-                            let entry = &mut dynamic.tap_dances[*idx];
-
-                            let fields = [
-                                ("On Tap", &mut entry.on_tap),
-                                ("On Hold", &mut entry.on_hold),
-                                ("On Double Tap", &mut entry.on_double_tap),
-                                ("On Tap Hold", &mut entry.on_tap_hold),
-                            ];
-
-                            for (label, value) in fields {
+                        let resp = frame
+                            .show(ui, |ui| {
                                 ui.horizontal(|ui| {
                                     ui.label(
-                                        egui::RichText::new(format!("{label}:"))
-                                            .size(13.0)
-                                            .color(egui::Color32::from_rgb(160, 160, 175)),
+                                        egui::RichText::new(format!("TD({idx})"))
+                                            .monospace()
+                                            .size(12.0)
+                                            .strong()
+                                            .color(if is_selected {
+                                                egui::Color32::from_rgb(100, 180, 255)
+                                            } else {
+                                                egui::Color32::from_rgb(170, 170, 185)
+                                            }),
                                     );
-                                    ui.add_space(8.0);
 
-                                    let kc = Keycode(*value);
-                                    let name = kc.short_name();
-                                    let btn = ui
-                                        .button(egui::RichText::new(&name).monospace().size(13.0));
-                                    if btn.secondary_clicked() {
-                                        // Clear the keycode
-                                        *value = 0;
-                                        changed = true;
-                                    }
-                                    btn.on_hover_text(format!(
-                                        "0x{:04X} — {}. Right-click to clear.",
-                                        value,
-                                        kc.name()
-                                    ));
-
-                                    // Simple keycode entry via text input
-                                    let mut hex = format!("{:04X}", *value);
-                                    let resp = ui.add(
-                                        egui::TextEdit::singleline(&mut hex)
-                                            .desired_width(60.0)
-                                            .font(egui::TextStyle::Monospace),
-                                    );
-                                    if resp.changed()
-                                        && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
-                                    {
-                                        *value = v;
-                                        changed = true;
+                                    if is_empty {
+                                        ui.label(
+                                            egui::RichText::new("empty")
+                                                .italics()
+                                                .size(10.0)
+                                                .color(egui::Color32::from_rgb(90, 90, 100)),
+                                        );
+                                    } else {
+                                        // Show tap key name as summary
+                                        let tap_kc = Keycode(entry.on_tap);
+                                        ui.label(
+                                            egui::RichText::new(tap_kc.name())
+                                                .size(10.0)
+                                                .color(egui::Color32::from_rgb(140, 140, 155)),
+                                        );
                                     }
                                 });
-                            }
+                            })
+                            .response;
 
-                            // Tapping term
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new("Tapping Term:")
-                                        .size(13.0)
-                                        .color(egui::Color32::from_rgb(160, 160, 175)),
-                                );
-                                ui.add_space(8.0);
-                                let mut val = entry.tapping_term as f32;
-                                if ui
-                                    .add(
-                                        egui::Slider::new(&mut val, 0.0..=500.0)
-                                            .suffix(" ms")
-                                            .integer(),
-                                    )
-                                    .changed()
-                                {
-                                    entry.tapping_term = val as u16;
-                                    changed = true;
-                                }
-                            });
-
-                            if changed {
-                                let entry_clone = entry.clone();
-                                let i = *idx;
-                                // End the borrow of dynamic_data before calling save
-                                let _ = dynamic;
-                                self.save_tap_dance(i, &entry_clone);
-                            }
-                        } else if !is_empty {
-                            // Show summary
-                            ui.horizontal(|ui| {
-                                let labels = [
-                                    ("Tap", entry.on_tap),
-                                    ("Hold", entry.on_hold),
-                                    ("DTap", entry.on_double_tap),
-                                    ("THold", entry.on_tap_hold),
-                                ];
-                                for (label, kc_raw) in labels {
-                                    if kc_raw != 0 {
-                                        let kc = Keycode(kc_raw);
-                                        ui.label(
-                                            egui::RichText::new(format!(
-                                                "{}: {}",
-                                                label,
-                                                kc.short_name()
-                                            ))
-                                            .size(12.0)
-                                            .color(egui::Color32::from_rgb(140, 150, 170)),
-                                        );
-                                        ui.add_space(8.0);
-                                    }
-                                }
-                                if entry.tapping_term > 0 {
-                                    ui.label(
-                                        egui::RichText::new(format!("{}ms", entry.tapping_term))
-                                            .size(12.0)
-                                            .color(egui::Color32::from_rgb(120, 130, 140)),
-                                    );
-                                }
-                            });
+                        if resp.interact(egui::Sense::click()).clicked()
+                            && let Some(dynamic) = self.dynamic_data.as_mut()
+                        {
+                            dynamic.editing_tap_dance = Some(*idx);
+                            dynamic.active_field = None;
                         }
-                    });
+                    }
+                });
+            });
+
+        // Editor panel (central)
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            let Some(editing_idx) = editing else {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(ui.available_height() / 3.0);
+                    ui.label(
+                        egui::RichText::new("Select a tap dance from the list")
+                            .size(14.0)
+                            .color(egui::Color32::from_rgb(120, 120, 135)),
+                    );
+                });
+                return;
+            };
+
+            let Some(entry) = entries.get(editing_idx).map(|(_, e)| e.clone()) else {
+                return;
+            };
+
+            // Top: entry header
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!("TD({editing_idx})"))
+                        .monospace()
+                        .size(18.0)
+                        .strong()
+                        .color(egui::Color32::from_rgb(200, 200, 215)),
+                );
+                ui.label(
+                    egui::RichText::new(format!("0x{:04X}", 0x5700u16 | editing_idx as u16))
+                        .monospace()
+                        .size(11.0)
+                        .color(egui::Color32::from_rgb(90, 90, 105)),
+                );
+            });
+            ui.label(
+                egui::RichText::new(
+                    "Click a field below, then pick a key from the picker at the bottom.",
+                )
+                .size(11.0)
+                .color(egui::Color32::from_rgb(110, 110, 125)),
+            );
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(4.0);
+
+            // Fields as clickable chips
+            let fields = [
+                ("On Tap", entry.on_tap, TapDanceField::OnTap),
+                ("On Hold", entry.on_hold, TapDanceField::OnHold),
+                (
+                    "On Double Tap",
+                    entry.on_double_tap,
+                    TapDanceField::OnDoubleTap,
+                ),
+                ("On Tap+Hold", entry.on_tap_hold, TapDanceField::OnTapHold),
+            ];
+
+            for (label, value, field) in &fields {
+                let is_active =
+                    active_field == Some(ActiveKeycodeField::TapDance(editing_idx, field.clone()));
+                if keycode_chip(ui, label, *value, is_active)
+                    && let Some(dynamic) = self.dynamic_data.as_mut()
+                {
+                    dynamic.active_field =
+                        Some(ActiveKeycodeField::TapDance(editing_idx, field.clone()));
+                }
+            }
+
+            // Tapping term slider
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new("Tapping Term:")
+                        .size(12.0)
+                        .color(egui::Color32::from_rgb(140, 140, 155)),
+                );
+                let mut val = entry.tapping_term as f32;
+                if ui
+                    .add(
+                        egui::Slider::new(&mut val, 0.0..=500.0)
+                            .suffix(" ms")
+                            .integer(),
+                    )
+                    .changed()
+                    && let Some(dynamic) = self.dynamic_data.as_mut()
+                {
+                    dynamic.tap_dances[editing_idx].tapping_term = val as u16;
+                    let e = dynamic.tap_dances[editing_idx].clone();
+                    self.save_tap_dance(editing_idx, &e);
+                }
+                if entry.tapping_term == 0 {
+                    ui.label(
+                        egui::RichText::new("(global default)")
+                            .size(10.0)
+                            .color(egui::Color32::from_rgb(100, 100, 115)),
+                    );
                 }
             });
+
+            // Shared picker at the bottom
+            if let Some(ActiveKeycodeField::TapDance(eidx, ref field)) = active_field
+                && eidx == editing_idx
+            {
+                ui.add_space(12.0);
+                ui.separator();
+                ui.add_space(4.0);
+
+                let current_value = match field {
+                    TapDanceField::OnTap => entry.on_tap,
+                    TapDanceField::OnHold => entry.on_hold,
+                    TapDanceField::OnDoubleTap => entry.on_double_tap,
+                    TapDanceField::OnTapHold => entry.on_tap_hold,
+                };
+
+                let field_label = match field {
+                    TapDanceField::OnTap => "On Tap",
+                    TapDanceField::OnHold => "On Hold",
+                    TapDanceField::OnDoubleTap => "On Double Tap",
+                    TapDanceField::OnTapHold => "On Tap+Hold",
+                };
+
+                let mut group_idx = self
+                    .dynamic_data
+                    .as_ref()
+                    .map(|d| d.picker_group_idx)
+                    .unwrap_or(0);
+
+                let picker_result = shared_keycode_picker(
+                    ui,
+                    current_value,
+                    &mut group_idx,
+                    &self.picker_groups,
+                    field_label,
+                );
+
+                if let Some(dynamic) = self.dynamic_data.as_mut() {
+                    dynamic.picker_group_idx = group_idx;
+                }
+
+                let new_val = if picker_result.cleared {
+                    Some(0u16)
+                } else {
+                    picker_result.selected
+                };
+
+                if let Some(val) = new_val
+                    && let Some(dynamic) = self.dynamic_data.as_mut()
+                {
+                    let e = &mut dynamic.tap_dances[editing_idx];
+                    match field {
+                        TapDanceField::OnTap => e.on_tap = val,
+                        TapDanceField::OnHold => e.on_hold = val,
+                        TapDanceField::OnDoubleTap => e.on_double_tap = val,
+                        TapDanceField::OnTapHold => e.on_tap_hold = val,
+                    }
+                    let entry_clone = e.clone();
+                    self.save_tap_dance(editing_idx, &entry_clone);
+                }
+            }
         });
     }
 

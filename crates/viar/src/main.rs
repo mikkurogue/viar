@@ -1,4 +1,5 @@
 mod app;
+mod theme;
 mod types;
 mod ui;
 mod util;

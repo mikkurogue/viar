@@ -11,10 +11,16 @@ use via_protocol::{
 
 use crate::{
     types::{
+        ActiveKeycodeField,
+        ComboField,
         StatusMessage,
         ViarApp,
     },
-    util::is_disconnect_error,
+    util::{
+        is_disconnect_error,
+        keycode_chip,
+        shared_keycode_picker,
+    },
 };
 
 impl ViarApp {
@@ -34,208 +40,223 @@ impl ViarApp {
             return;
         }
 
-        ui.add_space(12.0);
+        let entries: Vec<(usize, ComboEntry)> = dynamic
+            .combos
+            .iter()
+            .enumerate()
+            .map(|(i, e)| (i, e.clone()))
+            .collect();
+        let editing = dynamic.editing_combo;
+        let active_field = dynamic.active_field.clone();
 
-        let max_width = 600.0_f32.min(ui.available_width() - 40.0);
-        ui.vertical_centered(|ui| {
-            ui.set_max_width(max_width);
-            ui.heading("Combos");
-            ui.add_space(4.0);
-            ui.label(
-                egui::RichText::new(format!("{count} slots"))
-                    .size(12.0)
-                    .color(egui::Color32::from_rgb(140, 140, 155)),
-            );
-            ui.add_space(16.0);
-        });
+        // List panel
+        egui::Panel::left("combo_list_panel")
+            .resizable(true)
+            .default_size(200.0)
+            .min_size(150.0)
+            .max_size(300.0)
+            .show_inside(ui, |ui| {
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new("Combos")
+                        .size(16.0)
+                        .strong()
+                        .color(egui::Color32::from_rgb(200, 200, 215)),
+                );
+                ui.label(
+                    egui::RichText::new(format!("{count} slots"))
+                        .size(11.0)
+                        .color(egui::Color32::from_rgb(120, 120, 135)),
+                );
+                ui.add_space(8.0);
+                ui.separator();
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.set_max_width(max_width);
-            ui.vertical_centered(|ui| {
-                ui.set_max_width(max_width);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for (idx, entry) in &entries {
+                        let is_selected = editing == Some(*idx);
+                        let is_empty = entry.is_empty();
 
-                let Some(dynamic) = self.dynamic_data.as_ref() else {
-                    return;
-                };
-                let entries: Vec<(usize, ComboEntry)> = dynamic
-                    .combos
-                    .iter()
-                    .enumerate()
-                    .map(|(i, e)| (i, e.clone()))
-                    .collect();
-                let editing = dynamic.editing_combo;
-
-                for (idx, entry) in &entries {
-                    let is_editing = editing == Some(*idx);
-                    let is_empty = entry.is_empty();
-
-                    let frame = egui::Frame::default()
-                        .inner_margin(egui::Margin::same(12))
-                        .outer_margin(egui::Margin::symmetric(0, 4))
-                        .corner_radius(egui::CornerRadius::same(6))
-                        .fill(if is_editing {
-                            egui::Color32::from_rgb(40, 45, 55)
+                        let bg = if is_selected {
+                            egui::Color32::from_rgb(45, 55, 75)
                         } else {
-                            egui::Color32::from_rgb(30, 30, 35)
-                        })
-                        .stroke(egui::Stroke::new(
-                            1.0,
-                            if is_editing {
-                                egui::Color32::from_rgb(80, 120, 180)
-                            } else {
-                                egui::Color32::from_rgb(50, 50, 55)
-                            },
-                        ));
+                            egui::Color32::TRANSPARENT
+                        };
 
-                    frame.show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(
-                                egui::RichText::new(format!("Combo {idx}"))
-                                    .monospace()
-                                    .strong()
-                                    .color(egui::Color32::from_rgb(180, 180, 200)),
-                            );
+                        let frame = egui::Frame::default()
+                            .inner_margin(egui::Margin::same(6))
+                            .corner_radius(egui::CornerRadius::same(4))
+                            .fill(bg);
 
-                            if is_empty {
-                                ui.label(
-                                    egui::RichText::new("(empty)")
-                                        .italics()
-                                        .color(egui::Color32::from_rgb(100, 100, 110)),
-                                );
-                            }
-
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if is_editing {
-                                        if ui.button("Close").clicked()
-                                            && let Some(dynamic) = self.dynamic_data.as_mut()
-                                        {
-                                            dynamic.editing_combo = None;
-                                        }
-                                    } else if ui.button("Edit").clicked()
-                                        && let Some(dynamic) = self.dynamic_data.as_mut()
-                                    {
-                                        dynamic.editing_combo = Some(*idx);
-                                    }
-                                },
-                            );
-                        });
-
-                        if is_editing {
-                            ui.add_space(8.0);
-                            let mut changed = false;
-                            let Some(dynamic) = self.dynamic_data.as_mut() else {
-                                return;
-                            };
-                            let entry = &mut dynamic.combos[*idx];
-
-                            // Input keys (up to 4)
-                            for input_idx in 0..4 {
+                        let resp = frame
+                            .show(ui, |ui| {
                                 ui.horizontal(|ui| {
                                     ui.label(
-                                        egui::RichText::new(format!("Input {}:", input_idx + 1))
-                                            .size(13.0)
-                                            .color(egui::Color32::from_rgb(160, 160, 175)),
+                                        egui::RichText::new(format!("C{idx}"))
+                                            .monospace()
+                                            .size(12.0)
+                                            .strong()
+                                            .color(if is_selected {
+                                                egui::Color32::from_rgb(100, 180, 255)
+                                            } else {
+                                                egui::Color32::from_rgb(170, 170, 185)
+                                            }),
                                     );
-                                    ui.add_space(8.0);
 
-                                    let kc = Keycode(entry.input[input_idx]);
-                                    let name = kc.short_name();
-                                    let btn = ui
-                                        .button(egui::RichText::new(&name).monospace().size(13.0));
-                                    if btn.secondary_clicked() {
-                                        entry.input[input_idx] = 0;
-                                        changed = true;
-                                    }
-                                    btn.on_hover_text(format!(
-                                        "0x{:04X} — {}. Right-click to clear.",
-                                        entry.input[input_idx],
-                                        kc.name()
-                                    ));
-
-                                    let mut hex = format!("{:04X}", entry.input[input_idx]);
-                                    let resp = ui.add(
-                                        egui::TextEdit::singleline(&mut hex)
-                                            .desired_width(60.0)
-                                            .font(egui::TextStyle::Monospace),
-                                    );
-                                    if resp.changed()
-                                        && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
-                                    {
-                                        entry.input[input_idx] = v;
-                                        changed = true;
+                                    if is_empty {
+                                        ui.label(
+                                            egui::RichText::new("empty")
+                                                .italics()
+                                                .size(10.0)
+                                                .color(egui::Color32::from_rgb(90, 90, 100)),
+                                        );
+                                    } else {
+                                        // Summary: inputs -> output
+                                        let inputs: Vec<String> = entry
+                                            .input
+                                            .iter()
+                                            .filter(|&&k| k != 0)
+                                            .map(|&k| Keycode(k).name())
+                                            .collect();
+                                        let out = Keycode(entry.output).name();
+                                        ui.label(
+                                            egui::RichText::new(format!(
+                                                "{}->{}",
+                                                inputs.join("+"),
+                                                out
+                                            ))
+                                            .size(9.0)
+                                            .color(egui::Color32::from_rgb(130, 130, 145)),
+                                        );
                                     }
                                 });
-                            }
+                            })
+                            .response;
 
-                            // Output key
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new("Output:")
-                                        .size(13.0)
-                                        .color(egui::Color32::from_rgb(160, 160, 175)),
-                                );
-                                ui.add_space(8.0);
-
-                                let kc = Keycode(entry.output);
-                                let name = kc.short_name();
-                                let btn =
-                                    ui.button(egui::RichText::new(&name).monospace().size(13.0));
-                                if btn.secondary_clicked() {
-                                    entry.output = 0;
-                                    changed = true;
-                                }
-                                btn.on_hover_text(format!(
-                                    "0x{:04X} — {}. Right-click to clear.",
-                                    entry.output,
-                                    kc.name()
-                                ));
-
-                                let mut hex = format!("{:04X}", entry.output);
-                                let resp = ui.add(
-                                    egui::TextEdit::singleline(&mut hex)
-                                        .desired_width(60.0)
-                                        .font(egui::TextStyle::Monospace),
-                                );
-                                if resp.changed()
-                                    && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
-                                {
-                                    entry.output = v;
-                                    changed = true;
-                                }
-                            });
-
-                            if changed {
-                                let entry_clone = entry.clone();
-                                let i = *idx;
-                                let _ = dynamic;
-                                self.save_combo(i, &entry_clone);
-                            }
-                        } else if !is_empty {
-                            // Show summary
-                            ui.horizontal(|ui| {
-                                let inputs: Vec<String> = entry
-                                    .input
-                                    .iter()
-                                    .filter(|&&k| k != 0)
-                                    .map(|&k| Keycode(k).short_name())
-                                    .collect();
-                                let output = Keycode(entry.output).short_name();
-                                ui.label(
-                                    egui::RichText::new(format!(
-                                        "{} → {}",
-                                        inputs.join(" + "),
-                                        output
-                                    ))
-                                    .size(12.0)
-                                    .color(egui::Color32::from_rgb(140, 150, 170)),
-                                );
-                            });
+                        if resp.interact(egui::Sense::click()).clicked()
+                            && let Some(dynamic) = self.dynamic_data.as_mut()
+                        {
+                            dynamic.editing_combo = Some(*idx);
+                            dynamic.active_field = None;
                         }
-                    });
-                }
+                    }
+                });
             });
+
+        // Editor panel
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            let Some(editing_idx) = editing else {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(ui.available_height() / 3.0);
+                    ui.label(
+                        egui::RichText::new("Select a combo from the list")
+                            .size(14.0)
+                            .color(egui::Color32::from_rgb(120, 120, 135)),
+                    );
+                });
+                return;
+            };
+
+            let Some(entry) = entries.get(editing_idx).map(|(_, e)| e.clone()) else {
+                return;
+            };
+
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!("Combo {editing_idx}"))
+                        .monospace()
+                        .size(18.0)
+                        .strong()
+                        .color(egui::Color32::from_rgb(200, 200, 215)),
+                );
+            });
+            ui.label(
+                egui::RichText::new(
+                    "Press these keys together to output a different key. Click a field, then pick below.",
+                )
+                .size(11.0)
+                .color(egui::Color32::from_rgb(110, 110, 125)),
+            );
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(4.0);
+
+            // Input fields
+            for i in 0..4usize {
+                let label = format!("Input {}", i + 1);
+                let field = ComboField::Input(i);
+                let is_active = active_field
+                    == Some(ActiveKeycodeField::Combo(editing_idx, field.clone()));
+                if keycode_chip(ui, &label, entry.input[i], is_active)
+                    && let Some(dynamic) = self.dynamic_data.as_mut() {
+                        dynamic.active_field =
+                            Some(ActiveKeycodeField::Combo(editing_idx, field));
+                    }
+            }
+
+            ui.add_space(4.0);
+
+            // Output field
+            let is_active = active_field
+                == Some(ActiveKeycodeField::Combo(editing_idx, ComboField::Output));
+            if keycode_chip(ui, "Output", entry.output, is_active)
+                && let Some(dynamic) = self.dynamic_data.as_mut() {
+                    dynamic.active_field =
+                        Some(ActiveKeycodeField::Combo(editing_idx, ComboField::Output));
+                }
+
+            // Shared picker
+            if let Some(ActiveKeycodeField::Combo(eidx, ref field)) = active_field
+                && eidx == editing_idx {
+                    ui.add_space(12.0);
+                    ui.separator();
+                    ui.add_space(4.0);
+
+                    let current_value = match field {
+                        ComboField::Input(i) => entry.input[*i],
+                        ComboField::Output => entry.output,
+                    };
+
+                    let field_label = match field {
+                        ComboField::Input(i) => format!("Input {}", i + 1),
+                        ComboField::Output => "Output".to_string(),
+                    };
+
+                    let mut group_idx = self
+                        .dynamic_data
+                        .as_ref()
+                        .map(|d| d.picker_group_idx)
+                        .unwrap_or(0);
+
+                    let picker_result = shared_keycode_picker(
+                        ui,
+                        current_value,
+                        &mut group_idx,
+                        &self.picker_groups,
+                        &field_label,
+                    );
+
+                    if let Some(dynamic) = self.dynamic_data.as_mut() {
+                        dynamic.picker_group_idx = group_idx;
+                    }
+
+                    let new_val = if picker_result.cleared {
+                        Some(0u16)
+                    } else {
+                        picker_result.selected
+                    };
+
+                    if let Some(val) = new_val
+                        && let Some(dynamic) = self.dynamic_data.as_mut() {
+                            let e = &mut dynamic.combos[editing_idx];
+                            match field {
+                                ComboField::Input(i) => e.input[*i] = val,
+                                ComboField::Output => e.output = val,
+                            }
+                            let entry_clone = e.clone();
+                            self.save_combo(editing_idx, &entry_clone);
+                        }
+                }
         });
     }
 

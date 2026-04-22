@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use eframe::egui;
 use tracing::{
     info,
@@ -66,6 +68,113 @@ impl ViarApp {
         let mut clicked_key = None;
         let mut selected_key_rect: Option<egui::Rect> = None;
 
+        // Build combo info: map each keycode to the combos it participates in.
+        // Each combo gets a unique color derived from its index via hue rotation.
+        struct ComboInfo {
+            color:       egui::Color32,
+            description: String,
+        }
+        fn combo_color(index: usize, total: usize) -> egui::Color32 {
+            let hue = if total <= 1 {
+                0.35 // green
+            } else {
+                (index as f64) / (total as f64) // spread evenly across 0..1
+            };
+            // HSL to RGB with S=0.5, L=0.55 for muted but distinct pastels
+            let s = 0.5_f64;
+            let l = 0.55_f64;
+            let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+            let h_prime = hue * 6.0;
+            let x = c * (1.0 - (h_prime % 2.0 - 1.0).abs());
+            let (r1, g1, b1) = match h_prime as u32 {
+                0 => (c, x, 0.0),
+                1 => (x, c, 0.0),
+                2 => (0.0, c, x),
+                3 => (0.0, x, c),
+                4 => (x, 0.0, c),
+                _ => (c, 0.0, x),
+            };
+            let m = l - c / 2.0;
+            egui::Color32::from_rgb(
+                ((r1 + m) * 255.0) as u8,
+                ((g1 + m) * 255.0) as u8,
+                ((b1 + m) * 255.0) as u8,
+            )
+        }
+        let combo_map: HashMap<u16, Vec<ComboInfo>> = self
+            .dynamic_data
+            .as_ref()
+            .map(|d| {
+                let active_combos: Vec<_> = d
+                    .combos
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, c)| c.input.iter().any(|&k| k != 0))
+                    .collect();
+                let total = active_combos.len();
+                let mut map: HashMap<u16, Vec<ComboInfo>> = HashMap::new();
+                for (color_idx, (combo_idx, combo)) in active_combos.iter().enumerate() {
+                    let active_inputs: Vec<u16> =
+                        combo.input.iter().copied().filter(|&k| k != 0).collect();
+                    let color = combo_color(color_idx, total);
+                    let input_names: Vec<String> =
+                        active_inputs.iter().map(|&kc| Keycode(kc).name()).collect();
+                    let output_name = Keycode(combo.output).name();
+                    let desc = format!(
+                        "Combo {}: {} -> {}",
+                        combo_idx,
+                        input_names.join(" + "),
+                        output_name
+                    );
+                    for &kc in &active_inputs {
+                        map.entry(kc).or_default().push(ComboInfo {
+                            color,
+                            description: desc.clone(),
+                        });
+                    }
+                }
+                map
+            })
+            .unwrap_or_default();
+
+        // Build tap dance summaries for tooltip display
+        // Also build tap dance keycap labels: (tap_label, hold_label)
+        let mut td_summaries: HashMap<u16, String> = HashMap::new();
+        let mut td_keycap_labels: HashMap<u16, (String, String)> = HashMap::new();
+        if let Some(d) = self.dynamic_data.as_ref() {
+            for (i, td) in d.tap_dances.iter().enumerate() {
+                if td.is_empty() {
+                    continue;
+                }
+                let kc_raw = 0x5700u16 | i as u16;
+                let mut parts = Vec::new();
+                if td.on_tap != 0 {
+                    parts.push(format!("Tap: {}", Keycode(td.on_tap).name()));
+                }
+                if td.on_hold != 0 {
+                    parts.push(format!("Hold: {}", Keycode(td.on_hold).name()));
+                }
+                if td.on_double_tap != 0 {
+                    parts.push(format!("DTap: {}", Keycode(td.on_double_tap).name()));
+                }
+                if td.on_tap_hold != 0 {
+                    parts.push(format!("THold: {}", Keycode(td.on_tap_hold).name()));
+                }
+                if td.tapping_term > 0 {
+                    parts.push(format!("{}ms", td.tapping_term));
+                }
+                td_summaries.insert(kc_raw, parts.join("  |  "));
+
+                // Keycap: show tap key on top, TD index on bottom
+                let tap_label = if td.on_tap != 0 {
+                    Keycode(td.on_tap).name()
+                } else {
+                    format!("TD{i}")
+                };
+                td_keycap_labels.insert(kc_raw, (tap_label, format!("TD{i}")));
+            }
+        }
+
         for (key_idx, key_pos) in layout.keys.iter().enumerate() {
             let raw_kc = data
                 .keymap
@@ -114,13 +223,6 @@ impl ViarApp {
             );
 
             let label = keycode.name();
-            let font_size = if label.len() <= 2 {
-                key_size * 0.35
-            } else if label.len() <= 5 {
-                key_size * 0.25
-            } else {
-                key_size * 0.18
-            };
 
             let text_color = if is_selected {
                 egui::Color32::WHITE
@@ -130,19 +232,80 @@ impl ViarApp {
                 egui::Color32::from_rgb(220, 220, 230)
             };
 
-            painter.text(
-                rect.center(),
-                egui::Align2::CENTER_CENTER,
-                &label,
-                egui::FontId::proportional(font_size),
-                text_color,
-            );
+            // Determine split labels: TD keycap labels take priority, then dual_labels
+            let split_labels = td_keycap_labels
+                .get(&raw_kc)
+                .cloned()
+                .or_else(|| keycode.dual_labels());
+
+            if let Some((tap, hold)) = split_labels {
+                // Split keycap: tap label on top, hold label on bottom
+                let tap_font_size = if tap.len() <= 2 {
+                    key_size * 0.32
+                } else if tap.len() <= 5 {
+                    key_size * 0.22
+                } else {
+                    key_size * 0.16
+                };
+                let hold_font_size = key_size * 0.14;
+
+                let tap_pos = egui::pos2(rect.center().x, rect.min.y + rect.height() * 0.35);
+                let hold_pos = egui::pos2(rect.center().x, rect.min.y + rect.height() * 0.75);
+
+                painter.text(
+                    tap_pos,
+                    egui::Align2::CENTER_CENTER,
+                    &tap,
+                    egui::FontId::proportional(tap_font_size),
+                    text_color,
+                );
+
+                let hold_color = if is_selected {
+                    egui::Color32::from_rgb(180, 200, 230)
+                } else {
+                    egui::Color32::from_rgb(140, 140, 160)
+                };
+                painter.text(
+                    hold_pos,
+                    egui::Align2::CENTER_CENTER,
+                    &hold,
+                    egui::FontId::proportional(hold_font_size),
+                    hold_color,
+                );
+            } else {
+                let font_size = if label.len() <= 2 {
+                    key_size * 0.35
+                } else if label.len() <= 5 {
+                    key_size * 0.25
+                } else {
+                    key_size * 0.18
+                };
+                painter.text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    &label,
+                    egui::FontId::proportional(font_size),
+                    text_color,
+                );
+            }
+
+            // Combo indicators: colored dots in top-right corner, one per combo
+            if let Some(combos) = combo_map.get(&raw_kc) {
+                let dot_radius = key_size * 0.06;
+                for (i, combo) in combos.iter().enumerate() {
+                    let dot_pos = egui::pos2(
+                        rect.max.x - dot_radius * 2.5 - (i as f32) * dot_radius * 3.0,
+                        rect.min.y + dot_radius * 2.5,
+                    );
+                    painter.circle_filled(dot_pos, dot_radius, combo.color);
+                }
+            }
 
             if is_hovered && ui.input(|i| i.pointer.primary_clicked()) {
                 clicked_key = Some(key_idx);
             }
 
-            // Tooltip with debug info
+            // Tooltip with debug info and combo details
             if is_hovered {
                 egui::Tooltip::always_open(
                     ui.ctx().clone(),
@@ -159,6 +322,31 @@ impl ViarApp {
                         .monospace()
                         .size(12.0),
                     );
+                    if let Some(combos) = combo_map.get(&raw_kc) {
+                        ui.add_space(4.0);
+                        for combo in combos {
+                            ui.horizontal(|ui| {
+                                let (r, _) = ui.allocate_exact_size(
+                                    egui::vec2(8.0, 8.0),
+                                    egui::Sense::hover(),
+                                );
+                                ui.painter().circle_filled(r.center(), 4.0, combo.color);
+                                ui.label(
+                                    egui::RichText::new(&combo.description)
+                                        .size(11.0)
+                                        .color(egui::Color32::from_rgb(180, 200, 220)),
+                                );
+                            });
+                        }
+                    }
+                    if let Some(td_info) = td_summaries.get(&raw_kc) {
+                        ui.add_space(4.0);
+                        ui.label(
+                            egui::RichText::new(format!("Tap Dance: {td_info}"))
+                                .size(11.0)
+                                .color(egui::Color32::from_rgb(200, 180, 140)),
+                        );
+                    }
                 });
             }
         }

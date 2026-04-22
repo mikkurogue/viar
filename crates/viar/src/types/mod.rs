@@ -11,7 +11,13 @@ pub use common::{
     ConnectedTab,
     StatusMessage,
 };
-pub use dynamic::DynamicEntryData;
+pub use dynamic::{
+    ActiveKeycodeField,
+    ComboField,
+    DynamicEntryData,
+    KeyOverrideField,
+    TapDanceField,
+};
 pub use keymap::{
     KeyChange,
     KeymapData,

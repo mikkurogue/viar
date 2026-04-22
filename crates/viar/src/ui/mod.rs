@@ -5,4 +5,5 @@ pub mod keymap_tab;
 pub mod lighting_tab;
 pub mod menu;
 pub mod screens;
+pub mod settings_tab;
 pub mod tap_dance_tab;

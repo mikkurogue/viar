@@ -2,6 +2,7 @@ use eframe::egui;
 use via_protocol::{
     Keycode,
     KeycodeCategory,
+    KeycodeGroup,
 };
 
 /// Convert QMK-style HSV (hue 0-255, sat 0-255, val 0-255) to RGB.
@@ -66,4 +67,221 @@ pub fn key_bg_color(kc: &Keycode) -> egui::Color32 {
         KeycodeCategory::TapDance => egui::Color32::from_rgb(60, 55, 65),
         _ => egui::Color32::from_rgb(45, 45, 52),
     }
+}
+
+/// Render a clickable keycode chip. Returns true if clicked (to select this field).
+/// `is_active` indicates this field is currently selected for the shared picker.
+pub fn keycode_chip(ui: &mut egui::Ui, label: &str, value: u16, is_active: bool) -> bool {
+    let kc = Keycode(value);
+    let name = if value == 0 {
+        "---".to_string()
+    } else {
+        kc.name()
+    };
+
+    let mut clicked = false;
+
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(format!("{label}:"))
+                .size(12.0)
+                .color(if is_active {
+                    egui::Color32::from_rgb(100, 180, 255)
+                } else {
+                    egui::Color32::from_rgb(140, 140, 155)
+                }),
+        );
+
+        let bg = if is_active {
+            egui::Color32::from_rgb(50, 80, 120)
+        } else if value == 0 {
+            egui::Color32::from_rgb(40, 40, 45)
+        } else {
+            key_bg_color(&kc)
+        };
+
+        let border = if is_active {
+            egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 180, 255))
+        } else {
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 65))
+        };
+
+        let btn = ui.add(
+            egui::Button::new(egui::RichText::new(&name).monospace().size(12.0).color(
+                if value == 0 {
+                    egui::Color32::from_rgb(90, 90, 100)
+                } else {
+                    egui::Color32::from_rgb(220, 220, 230)
+                },
+            ))
+            .fill(bg)
+            .stroke(border)
+            .corner_radius(egui::CornerRadius::same(4))
+            .min_size(egui::vec2(60.0, 24.0)),
+        );
+
+        if btn.clicked() {
+            clicked = true;
+        }
+
+        if value != 0 {
+            btn.on_hover_text(format!("0x{:04X} — {}", value, kc.description()));
+        } else {
+            btn.on_hover_text("Click to select, then pick a key below");
+        }
+    });
+
+    clicked
+}
+
+/// Result from the shared keycode picker.
+pub struct PickerResult {
+    pub selected: Option<u16>,
+    pub cleared:  bool,
+}
+
+/// Render the shared keycode picker grid at the bottom of an editor panel.
+/// `current_value` is the value of the currently active field.
+/// `selected_group` / `groups` control the tab state.
+/// Returns whether a key was picked and the new value.
+pub fn shared_keycode_picker(
+    ui: &mut egui::Ui,
+    current_value: u16,
+    selected_group: &mut usize,
+    groups: &[KeycodeGroup],
+    active_field_label: &str,
+) -> PickerResult {
+    let mut result = PickerResult {
+        selected: None,
+        cleared:  false,
+    };
+
+    // Header with active field indicator + clear button
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(format!("Setting: {active_field_label}"))
+                .size(11.0)
+                .strong()
+                .color(egui::Color32::from_rgb(100, 180, 255)),
+        );
+
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if current_value != 0
+                && ui
+                    .add(
+                        egui::Button::new(
+                            egui::RichText::new("Clear")
+                                .size(10.0)
+                                .color(egui::Color32::from_rgb(180, 100, 100)),
+                        )
+                        .fill(egui::Color32::from_rgb(50, 35, 35))
+                        .corner_radius(egui::CornerRadius::same(3)),
+                    )
+                    .clicked()
+            {
+                result.cleared = true;
+            }
+
+            // Hex input
+            let hex_id = ui.id().with("shared_hex");
+            let mut hex: String = ui
+                .memory(|mem| mem.data.get_temp(hex_id))
+                .unwrap_or_else(|| format!("{:04X}", current_value));
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut hex)
+                    .desired_width(45.0)
+                    .font(egui::TextStyle::Monospace),
+            );
+            ui.memory_mut(|mem| mem.data.insert_temp(hex_id, hex.clone()));
+            if resp.lost_focus()
+                && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                && let Ok(v) = u16::from_str_radix(hex.trim(), 16)
+            {
+                result.selected = Some(v);
+            }
+            ui.label(
+                egui::RichText::new("Hex:")
+                    .size(10.0)
+                    .color(egui::Color32::from_rgb(100, 100, 115)),
+            );
+        });
+    });
+
+    ui.add_space(2.0);
+
+    // Group tabs
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
+        for (i, group) in groups.iter().enumerate() {
+            let sel = *selected_group == i;
+            let label_text = egui::RichText::new(group.name).size(9.5);
+            if ui.selectable_label(sel, label_text).clicked() {
+                *selected_group = i;
+            }
+        }
+    });
+
+    // Keycode buttons grid
+    egui::ScrollArea::vertical()
+        .max_height(180.0)
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
+                if let Some(group) = groups.get(*selected_group) {
+                    for kc in &group.codes {
+                        let kc_name = kc.name();
+                        let is_current = kc.0 == current_value;
+                        let size = egui::vec2(38.0, 22.0);
+                        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+                        let is_hov = response.hovered();
+
+                        let bg = if is_current {
+                            egui::Color32::from_rgb(70, 130, 180)
+                        } else if is_hov {
+                            egui::Color32::from_rgb(70, 70, 80)
+                        } else {
+                            egui::Color32::from_rgb(42, 42, 48)
+                        };
+                        let text_col = if is_current {
+                            egui::Color32::WHITE
+                        } else {
+                            egui::Color32::from_rgb(190, 190, 200)
+                        };
+
+                        let rounding = egui::CornerRadius::same(3);
+                        ui.painter().rect_filled(rect, rounding, bg);
+                        if is_current {
+                            ui.painter().rect_stroke(
+                                rect,
+                                rounding,
+                                egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 180, 255)),
+                                egui::StrokeKind::Outside,
+                            );
+                        }
+
+                        let font_size = if kc_name.len() <= 2 {
+                            10.0
+                        } else if kc_name.len() <= 5 {
+                            9.0
+                        } else {
+                            7.5
+                        };
+                        ui.painter().text(
+                            rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            &kc_name,
+                            egui::FontId::proportional(font_size),
+                            text_col,
+                        );
+
+                        if response.clicked() {
+                            result.selected = Some(kc.0);
+                        }
+                        response.on_hover_text(kc.description());
+                    }
+                }
+            });
+        });
+
+    result
 }
