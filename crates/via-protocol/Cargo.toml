@@ -3,6 +3,8 @@ name = "via-protocol"
 version = "0.1.0"
 edition = "2024"
 description = "VIA/Vial keyboard configuration protocol over USB HID"
+license = "MIT"
+repository = "https://github.com/mikkurogue/viar"
 
 [dependencies]
 hidapi = "2.6.5"
