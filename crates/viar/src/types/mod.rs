@@ -2,6 +2,7 @@ mod common;
 mod dynamic;
 mod keymap;
 mod lighting;
+mod pointing;
 mod state;
 
 pub use common::{
@@ -23,6 +24,7 @@ pub use keymap::{
     KeymapData,
 };
 pub use lighting::LightingData;
+pub use pointing::PointingData;
 pub use state::{
     DetectResult,
     ViarApp,

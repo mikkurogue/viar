@@ -13,6 +13,7 @@ use super::{
     DynamicEntryData,
     KeymapData,
     LightingData,
+    PointingData,
     StatusMessage,
 };
 use crate::theme::{
@@ -52,6 +53,8 @@ pub struct ViarApp {
     pub lighting_data: Option<LightingData>,
     /// Dynamic entries (tap dance, combos, key overrides)
     pub dynamic_data: Option<DynamicEntryData>,
+    /// Pointing device / trackpad settings
+    pub pointing_data: Option<PointingData>,
     /// Receiver for background HID detection result
     pub detect_rx: Option<mpsc::Receiver<DetectResult>>,
     /// Persistent config

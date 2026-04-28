@@ -16,12 +16,14 @@ pub use command::{
     KeyOverrideEntry,
     LightingChannel,
     LightingProtocol,
+    QmkSettingDescriptor,
     RgbValueId,
     TapDanceEntry,
     ViaCommand,
     ViaCommandId,
     VialRgbEffect,
     VialRgbValueId,
+    pointing_settings,
 };
 pub use device::{
     HidAccessStatus,
@@ -38,6 +40,7 @@ pub use keycodes::{
     KeycodeGroup,
     all_basic_keycodes,
     keycode_groups,
+    mod_mask_to_string,
 };
 pub use layout::{
     KeyPosition,

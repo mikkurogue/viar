@@ -336,6 +336,103 @@ impl<'a> ViaProtocol<'a> {
         Ok(entries)
     }
 
+    /// Get an encoder keycode for a specific layer/encoder/direction.
+    pub fn get_encoder(&self, layer: u8, encoder: u8, clockwise: bool) -> ViaResult<u16> {
+        let resp = self
+            .device
+            .send_command(&ViaCommand::get_encoder(layer, encoder, clockwise))?;
+        let keycode = u16::from_be_bytes([resp[4], resp[5]]);
+        Ok(keycode)
+    }
+
+    /// Set an encoder keycode for a specific layer/encoder/direction.
+    pub fn set_encoder(
+        &self,
+        layer: u8,
+        encoder: u8,
+        clockwise: bool,
+        keycode: u16,
+    ) -> ViaResult<()> {
+        self.device
+            .send_command(&ViaCommand::set_encoder(layer, encoder, clockwise, keycode))?;
+        Ok(())
+    }
+
+    /// Query available QMK settings from the keyboard.
+    /// Returns a list of setting IDs available on this keyboard.
+    /// Used for pointing device / trackpad configuration.
+    pub fn qmk_settings_query(&self) -> ViaResult<Vec<u16>> {
+        let mut settings = Vec::new();
+        let mut page: u16 = 0;
+        loop {
+            let resp = self
+                .device
+                .send_command(&ViaCommand::vial_qmk_settings_query(page))?;
+            // Response: pairs of (id_lo, id_hi), terminated by 0xFFFF or 0x0000
+            let data = &resp[..];
+            let mut found_any = false;
+            for chunk in data.chunks_exact(2) {
+                let id = u16::from_le_bytes([chunk[0], chunk[1]]);
+                if id == 0xFFFF || id == 0x0000 {
+                    return Ok(settings);
+                }
+                settings.push(id);
+                found_any = true;
+            }
+            if !found_any {
+                break;
+            }
+            page += 1;
+        }
+        Ok(settings)
+    }
+
+    /// Get a QMK setting value by ID. Returns raw bytes.
+    pub fn qmk_settings_get(&self, setting_id: u16) -> ViaResult<Vec<u8>> {
+        let resp = self
+            .device
+            .send_command(&ViaCommand::vial_qmk_settings_get(setting_id))?;
+        // Response: [status, value_bytes...]
+        // status 0 = success
+        if resp[0] != 0 {
+            return Err(ViaError::Protocol(format!(
+                "QMK settings get failed for 0x{:04X}: status {}",
+                setting_id, resp[0]
+            )));
+        }
+        Ok(resp[1..].to_vec())
+    }
+
+    /// Set a QMK setting value by ID.
+    pub fn qmk_settings_set(&self, setting_id: u16, value: &[u8]) -> ViaResult<()> {
+        let resp = self
+            .device
+            .send_command(&ViaCommand::vial_qmk_settings_set(setting_id, value))?;
+        if resp[0] != 0 {
+            return Err(ViaError::Protocol(format!(
+                "QMK settings set failed for 0x{:04X}: status {}",
+                setting_id, resp[0]
+            )));
+        }
+        Ok(())
+    }
+
+    /// Reset all QMK settings to defaults.
+    pub fn qmk_settings_reset(&self) -> ViaResult<()> {
+        self.device
+            .send_command(&ViaCommand::vial_qmk_settings_reset())?;
+        Ok(())
+    }
+
+    /// Check if the keyboard supports QMK settings (pointing device config etc.)
+    pub fn has_qmk_settings(&self) -> bool {
+        matches!(
+            self.device
+                .send_command(&ViaCommand::vial_qmk_settings_query(0)),
+            Ok(resp) if resp[0] != 0xFF
+        )
+    }
+
     /// Detect the lighting protocol supported by the keyboard.
     /// Tries VialRGB first, then Vial legacy, then VIA channels.
     pub fn detect_lighting_protocol(&self) -> Option<LightingProtocol> {

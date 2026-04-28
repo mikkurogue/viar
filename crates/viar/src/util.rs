@@ -78,6 +78,7 @@ impl CategoryStyle for KeycodeCategory {
             Self::None => egui::Color32::from_rgb(35, 35, 40),
             Self::Transparent => egui::Color32::from_rgb(35, 35, 40),
             Self::Basic => egui::Color32::from_rgb(50, 50, 58),
+            Self::Mouse => egui::Color32::from_rgb(55, 50, 65),
             Self::Mod => egui::Color32::from_rgb(60, 50, 70),
             Self::LayerTap => egui::Color32::from_rgb(50, 60, 70),
             Self::LayerMod => egui::Color32::from_rgb(48, 62, 60),
@@ -91,6 +92,10 @@ impl CategoryStyle for KeycodeCategory {
             Self::PersistentDefLayer => egui::Color32::from_rgb(50, 55, 60),
             Self::ModTap => egui::Color32::from_rgb(65, 55, 50),
             Self::TapDance => egui::Color32::from_rgb(60, 55, 65),
+            Self::SwapHands => egui::Color32::from_rgb(55, 58, 50),
+            Self::Magic => egui::Color32::from_rgb(60, 50, 55),
+            Self::Lighting => egui::Color32::from_rgb(50, 55, 65),
+            Self::Quantum => egui::Color32::from_rgb(55, 48, 60),
             _ => egui::Color32::from_rgb(45, 45, 52),
         }
     }

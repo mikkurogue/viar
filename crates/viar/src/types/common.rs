@@ -16,6 +16,7 @@ pub enum ConnectedTab {
     TapDance,
     Combos,
     KeyOverrides,
+    Pointing,
     Settings,
 }
 

@@ -67,6 +67,17 @@ impl ViarApp {
                     self.active_tab = ConnectedTab::KeyOverrides;
                 }
             }
+            if self.pointing_data.is_some()
+                && themed_tab(
+                    ui,
+                    self.active_tab == ConnectedTab::Pointing,
+                    "Pointing",
+                    &theme,
+                )
+                .clicked()
+            {
+                self.active_tab = ConnectedTab::Pointing;
+            }
 
             // Settings always available, pushed to the right
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -99,6 +110,7 @@ impl ViarApp {
             ConnectedTab::TapDance => self.render_tap_dance_tab(ui),
             ConnectedTab::Combos => self.render_combos_tab(ui),
             ConnectedTab::KeyOverrides => self.render_key_overrides_tab(ui),
+            ConnectedTab::Pointing => self.render_pointing_tab(ui),
             ConnectedTab::Settings => self.render_settings_tab(ui),
         }
     }

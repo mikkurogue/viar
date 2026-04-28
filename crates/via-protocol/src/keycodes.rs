@@ -13,11 +13,83 @@ impl Keycode {
         self.0
     }
 
+    /// Construct a Layer-Tap keycode: LT(layer, kc)
+    /// tap produces `kc`, hold activates `layer`.
+    pub fn layer_tap(layer: u8, kc: u8) -> Self {
+        Self(0x4000 | ((layer as u16 & 0x0F) << 8) | kc as u16)
+    }
+
+    /// Construct a Mod-Tap keycode: MT(mod_mask, kc)
+    /// tap produces `kc`, hold activates modifier(s).
+    pub fn mod_tap(mods: u8, kc: u8) -> Self {
+        Self(0x2000 | ((mods as u16 & 0x1F) << 8) | kc as u16)
+    }
+
+    /// Construct a Layer-Mod keycode: LM(layer, mod)
+    /// Activates `layer` with modifier(s) applied.
+    pub fn layer_mod(layer: u8, mods: u8) -> Self {
+        Self(0x5000 | ((layer as u16 & 0xF) << 4) | (mods as u16 & 0xF))
+    }
+
+    /// Construct a One-Shot Modifier keycode: OSM(mod_mask)
+    pub fn one_shot_mod(mods: u8) -> Self {
+        Self(0x52A0 | (mods as u16 & 0x1F))
+    }
+
+    /// Construct a Mod+Key combo: e.g. C(kc), S(kc), C+S(kc)
+    pub fn mod_key(mods: u8, kc: u8) -> Self {
+        Self(((mods as u16 & 0x1F) << 8) | kc as u16)
+    }
+
+    /// Construct a Swap Hands keycode: SH(kc)
+    pub fn swap_hands(kc: u8) -> Self {
+        Self(0x5600 | kc as u16)
+    }
+
+    /// Extract the modifier mask for ModTap, Mod, or OSM keycodes.
+    pub fn mod_mask(self) -> u8 {
+        match self.category() {
+            KeycodeCategory::ModTap => ((self.0 >> 8) & 0x1F) as u8,
+            KeycodeCategory::Mod => ((self.0 >> 8) & 0x1F) as u8,
+            KeycodeCategory::LayerOneShotMod => (self.0 & 0x1F) as u8,
+            KeycodeCategory::LayerMod => (self.0 & 0xF) as u8,
+            _ => 0,
+        }
+    }
+
+    /// Extract the basic keycode for ModTap, Mod, or LayerTap keycodes.
+    pub fn base_keycode(self) -> u8 {
+        match self.category() {
+            KeycodeCategory::ModTap | KeycodeCategory::Mod | KeycodeCategory::LayerTap => {
+                (self.0 & 0xFF) as u8
+            }
+            _ => 0,
+        }
+    }
+
+    /// Extract the layer number for layer keycodes.
+    pub fn layer(self) -> u8 {
+        match self.category() {
+            KeycodeCategory::LayerTap => ((self.0 >> 8) & 0x0F) as u8,
+            KeycodeCategory::LayerMod => ((self.0 >> 4) & 0xF) as u8,
+            KeycodeCategory::LayerMomentary
+            | KeycodeCategory::LayerToggle
+            | KeycodeCategory::LayerOn
+            | KeycodeCategory::LayerDefault
+            | KeycodeCategory::LayerOneShotLayer
+            | KeycodeCategory::LayerTapToggle
+            | KeycodeCategory::PersistentDefLayer => (self.0 & 0x1F) as u8,
+            _ => 0,
+        }
+    }
+
     /// Determine the category of this keycode.
     pub fn category(self) -> KeycodeCategory {
         match self.0 {
             0x0000 => KeycodeCategory::None,
             0x0001 => KeycodeCategory::Transparent,
+            // Mouse keys: QMK uses 0x00CD-0x00D9 range
+            0x00CD..=0x00D9 => KeycodeCategory::Mouse,
             0x0004..=0x00FF => KeycodeCategory::Basic,
             0x0100..=0x1FFF => KeycodeCategory::Mod,
             0x2000..=0x3FFF => KeycodeCategory::ModTap,
@@ -31,6 +103,7 @@ impl Keycode {
             0x52A0..=0x52BF => KeycodeCategory::LayerOneShotMod, // OSM(mod)
             0x52C0..=0x52DF => KeycodeCategory::LayerTapToggle, // TT(layer)
             0x52E0..=0x52FF => KeycodeCategory::PersistentDefLayer,
+            0x5600..=0x56FF => KeycodeCategory::SwapHands,
             0x5700..=0x57FF => KeycodeCategory::TapDance,
             0x7C77 => KeycodeCategory::TriLayer,
             0x7C78 => KeycodeCategory::TriLayer,
@@ -45,6 +118,18 @@ impl Keycode {
     /// Returns an owned String since complex keycodes need formatting.
     pub fn name(self) -> String {
         if let Some(name) = basic_keycode_name(self.0) {
+            return name.to_string();
+        }
+        if let Some(name) = mouse_keycode_name(self.0) {
+            return name.to_string();
+        }
+        if let Some(name) = magic_keycode_name(self.0) {
+            return name.to_string();
+        }
+        if let Some(name) = lighting_keycode_name(self.0) {
+            return name.to_string();
+        }
+        if let Some(name) = quantum_keycode_name(self.0) {
             return name.to_string();
         }
         match self.0 {
@@ -197,6 +282,30 @@ impl Keycode {
                 let idx = raw & 0xFF;
                 format!("TD({idx})")
             }
+            KeycodeCategory::SwapHands => {
+                let kc = raw & 0xFF;
+                if kc == 0xF0 {
+                    "SH_TG".to_string()
+                } else if kc == 0xF1 {
+                    "SH_TT".to_string()
+                } else if kc == 0xF2 {
+                    "SH_MON".to_string()
+                } else if kc == 0xF3 {
+                    "SH_MOFF".to_string()
+                } else if kc == 0xF4 {
+                    "SH_OFF".to_string()
+                } else if kc == 0xF5 {
+                    "SH_ON".to_string()
+                } else if kc == 0xF6 {
+                    "SH_OS".to_string()
+                } else {
+                    let kc_name = basic_keycode_name(kc).unwrap_or("??");
+                    format!("SH({kc_name})")
+                }
+            }
+            KeycodeCategory::Mouse => {
+                mouse_keycode_name(raw).unwrap_or("Mouse??").to_string()
+            }
             _ => format!("{raw:#06x}"),
         }
     }
@@ -300,6 +409,42 @@ impl Keycode {
                 format!("Tap Dance {idx} — different actions for tap/hold/double-tap")
             }
             KeycodeCategory::TriLayer => "Tri-Layer key".into(),
+            KeycodeCategory::Mouse => {
+                mouse_keycode_description(self.0)
+                    .unwrap_or("Mouse key")
+                    .to_string()
+            }
+            KeycodeCategory::SwapHands => {
+                let kc = self.0 & 0xFF;
+                match kc {
+                    0xF0 => "Toggle swap hands".into(),
+                    0xF1 => "Tap-toggle swap hands".into(),
+                    0xF2 => "Momentary swap on".into(),
+                    0xF3 => "Momentary swap off".into(),
+                    0xF4 => "Turn off swap hands".into(),
+                    0xF5 => "Turn on swap hands".into(),
+                    0xF6 => "One-shot swap hands".into(),
+                    _ => {
+                        let kc_name = basic_keycode_name(kc).unwrap_or("??");
+                        format!("{kc_name} on tap, swap hands on hold")
+                    }
+                }
+            }
+            KeycodeCategory::Magic => {
+                magic_keycode_name(self.0)
+                    .map(|n| format!("Magic: {n}"))
+                    .unwrap_or_else(|| format!("Magic keycode (0x{:04X})", self.0))
+            }
+            KeycodeCategory::Lighting => {
+                lighting_keycode_name(self.0)
+                    .map(|n| format!("Lighting: {n}"))
+                    .unwrap_or_else(|| format!("Lighting keycode (0x{:04X})", self.0))
+            }
+            KeycodeCategory::Quantum => {
+                quantum_keycode_name(self.0)
+                    .map(|n| format!("Quantum: {n}"))
+                    .unwrap_or_else(|| format!("Quantum keycode (0x{:04X})", self.0))
+            }
             _ => {
                 let name = self.name();
                 format!("{name} (0x{:04X})", self.0)
@@ -319,6 +464,7 @@ pub enum KeycodeCategory {
     None,
     Transparent,
     Basic,
+    Mouse,
     Mod,
     LayerTap,
     LayerOn,
@@ -333,6 +479,7 @@ pub enum KeycodeCategory {
     LayerMod,
     LayerTapToggle,
     PersistentDefLayer,
+    SwapHands,
     Magic,
     Lighting,
     Quantum,
@@ -341,7 +488,7 @@ pub enum KeycodeCategory {
 }
 
 /// Convert a QMK modifier bitmask to a human-readable string.
-fn mod_mask_to_string(mods: u8) -> String {
+pub fn mod_mask_to_string(mods: u8) -> String {
     let mut parts = Vec::new();
     // Left modifiers
     if mods & 0x01 != 0 {
@@ -464,9 +611,29 @@ fn basic_keycode_description(kc: u16) -> Option<&'static str> {
         0x63 => "Numpad Decimal",
         0x65 => "Application / Menu key",
         0x66 => "System Power",
+        0xA5 => "Media Play/Pause",
+        0xA6 => "Media Stop",
+        0xA7 => "Previous Track",
         0xA8 => "Mute audio",
         0xA9 => "Volume Up",
         0xAA => "Volume Down",
+        0xAB => "Next Track",
+        0xAC => "Media Eject",
+        0xAD => "Fast Forward",
+        0xAE => "Rewind",
+        0xAF => "Screen Brightness Up",
+        0xB0 => "Screen Brightness Down",
+        0xB1 => "Media Select",
+        0xB2 => "Launch Mail",
+        0xB3 => "Launch Calculator",
+        0xB4 => "Launch My Computer",
+        0xB5 => "Browser Search",
+        0xB6 => "Browser Home",
+        0xB7 => "Browser Back",
+        0xB8 => "Browser Forward",
+        0xB9 => "Browser Stop",
+        0xBA => "Browser Refresh",
+        0xBB => "Browser Favorites",
         0xE0 => "Left Control",
         0xE1 => "Left Shift",
         0xE2 => "Left Alt / Option",
@@ -588,12 +755,199 @@ fn basic_keycode_name(kc: u16) -> Option<&'static str> {
         0xE6 => "RAlt",
         0xE7 => "RGui",
         // Media
+        0xA5 => "MPlay",
+        0xA6 => "MStop",
+        0xA7 => "MPrev",
         0xA8 => "Mute",
         0xA9 => "VolUp",
         0xAA => "VolDn",
+        0xAB => "MNext",
+        0xAC => "MEjct",
+        0xAD => "MFfwd",
+        0xAE => "MRwnd",
+        0xAF => "BriUp",
+        0xB0 => "BriDn",
+        0xB1 => "MSlct",
+        0xB2 => "Mail",
+        0xB3 => "Calc",
+        0xB4 => "MyCmp",
+        0xB5 => "WwwSr",
+        0xB6 => "WwwHm",
+        0xB7 => "WwwBk",
+        0xB8 => "WwwFw",
+        0xB9 => "WwwSp",
+        0xBA => "WwwRf",
+        0xBB => "WwwFv",
         // Misc
         0x65 => "App",
         0x66 => "Power",
+        // F13-F24
+        0x68 => "F13",
+        0x69 => "F14",
+        0x6A => "F15",
+        0x6B => "F16",
+        0x6C => "F17",
+        0x6D => "F18",
+        0x6E => "F19",
+        0x6F => "F20",
+        0x70 => "F21",
+        0x71 => "F22",
+        0x72 => "F23",
+        0x73 => "F24",
+        // International keys
+        0x87 => "RO",
+        0x88 => "Kana",
+        0x89 => "Yen",
+        0x8A => "Henk",
+        0x8B => "Mhen",
+        // Language keys
+        0x90 => "HGL",
+        0x91 => "Hanja",
+        _ => return None,
+    })
+}
+
+/// Look up the name of a mouse keycode (QMK 0x00CD-0x00D9 range).
+fn mouse_keycode_name(kc: u16) -> Option<&'static str> {
+    Some(match kc {
+        0x00CD => "MsUp",
+        0x00CE => "MsDn",
+        0x00CF => "MsLt",
+        0x00D0 => "MsRt",
+        0x00D1 => "Btn1",
+        0x00D2 => "Btn2",
+        0x00D3 => "Btn3",
+        0x00D4 => "Btn4",
+        0x00D5 => "Btn5",
+        0x00D6 => "WhUp",
+        0x00D7 => "WhDn",
+        0x00D8 => "WhLt",
+        0x00D9 => "WhRt",
+        _ => return None,
+    })
+}
+
+/// Human-friendly descriptions for mouse keycodes.
+fn mouse_keycode_description(kc: u16) -> Option<&'static str> {
+    Some(match kc {
+        0x00CD => "Mouse Cursor Up",
+        0x00CE => "Mouse Cursor Down",
+        0x00CF => "Mouse Cursor Left",
+        0x00D0 => "Mouse Cursor Right",
+        0x00D1 => "Mouse Button 1 (Left Click)",
+        0x00D2 => "Mouse Button 2 (Right Click)",
+        0x00D3 => "Mouse Button 3 (Middle Click)",
+        0x00D4 => "Mouse Button 4 (Back)",
+        0x00D5 => "Mouse Button 5 (Forward)",
+        0x00D6 => "Mouse Wheel Up (Scroll Up)",
+        0x00D7 => "Mouse Wheel Down (Scroll Down)",
+        0x00D8 => "Mouse Wheel Left (Scroll Left)",
+        0x00D9 => "Mouse Wheel Right (Scroll Right)",
+        _ => return None,
+    })
+}
+
+/// Look up the name of a Magic keycode (0x7000-0x70FF range).
+fn magic_keycode_name(kc: u16) -> Option<&'static str> {
+    Some(match kc {
+        0x7000 => "MG_SWNU",  // Swap Control and GUI (on)
+        0x7001 => "MG_SWCU",  // Swap Control and Caps Lock (on)
+        0x7002 => "MG_SWLA",  // Swap Left Alt and GUI (on)
+        0x7003 => "MG_SWRA",  // Swap Right Alt and GUI (on)
+        0x7004 => "MG_NKRO",  // N-Key Rollover (on)
+        0x7005 => "MG_GESC",  // Grave Escape (on)
+        0x7006 => "MG_BSPC",  // Swap Backspace and Backslash (on)
+        0x7007 => "CG_NORM",  // Unswap Control and GUI
+        0x7008 => "MG_UNCC",  // Unswap Caps Lock
+        0x7009 => "MG_UNLA",  // Unswap Left Alt and GUI
+        0x700A => "MG_UNRA",  // Unswap Right Alt and GUI
+        0x700B => "MG_UNNK",  // N-Key Rollover (off)
+        0x700C => "MG_UNGE",  // Grave Escape (off)
+        0x700D => "MG_UNBS",  // Unswap Backspace
+        0x700E => "CG_TOGG",  // Toggle Control and GUI swap
+        0x700F => "MG_TOGN",  // Toggle NKRO
+        _ => return None,
+    })
+}
+
+/// Look up the name of a Lighting keycode (0x7800-0x78FF range).
+fn lighting_keycode_name(kc: u16) -> Option<&'static str> {
+    Some(match kc {
+        0x7800 => "RGB_TOG",
+        0x7801 => "RGB_MOD",
+        0x7802 => "RGB_RMOD",
+        0x7803 => "RGB_HUI",
+        0x7804 => "RGB_HUD",
+        0x7805 => "RGB_SAI",
+        0x7806 => "RGB_SAD",
+        0x7807 => "RGB_VAI",
+        0x7808 => "RGB_VAD",
+        0x7809 => "RGB_SPI",
+        0x780A => "RGB_SPD",
+        0x780B => "RGB_M_P",  // Plain
+        0x780C => "RGB_M_B",  // Breathe
+        0x780D => "RGB_M_R",  // Rainbow
+        0x780E => "RGB_M_SW", // Swirl
+        0x780F => "RGB_M_SN", // Snake
+        0x7810 => "RGB_M_K",  // Knight
+        0x7811 => "RGB_M_X",  // Xmas
+        0x7812 => "RGB_M_G",  // Gradient
+        0x7813 => "RGB_M_T",  // Test
+        0x7820 => "BL_TOGG",  // Backlight toggle
+        0x7821 => "BL_STEP",  // Backlight step
+        0x7822 => "BL_ON",
+        0x7823 => "BL_OFF",
+        0x7824 => "BL_INC",
+        0x7825 => "BL_DEC",
+        0x7826 => "BL_BRTG",  // Backlight breathing toggle
+        _ => return None,
+    })
+}
+
+/// Look up the name of a Quantum keycode (0x7C00-0x7DFF range).
+fn quantum_keycode_name(kc: u16) -> Option<&'static str> {
+    Some(match kc {
+        0x7C00 => "QK_BOOT",  // Bootloader
+        0x7C01 => "QK_RBT",   // Reboot (soft reset)
+        0x7C02 => "DB_TOGG",  // Debug toggle
+        0x7C03 => "EE_CLR",   // EEPROM clear
+        0x7C10 => "AU_ON",    // Audio on
+        0x7C11 => "AU_OFF",
+        0x7C12 => "AU_TOGG",
+        0x7C20 => "MU_ON",    // Music on
+        0x7C21 => "MU_OFF",
+        0x7C22 => "MU_TOGG",
+        0x7C23 => "MU_NEXT",  // Music mode next
+        0x7C30 => "CK_TOGG",  // Clicky toggle
+        0x7C31 => "CK_RST",
+        0x7C32 => "CK_UP",
+        0x7C33 => "CK_DN",
+        0x7C40 => "HF_TOGG",  // Haptic feedback toggle
+        0x7C41 => "HF_RST",
+        0x7C42 => "HF_NEXT",
+        0x7C43 => "HF_CONT",  // Continuous haptic
+        0x7C44 => "HF_CONI",  // Continuous haptic increase
+        0x7C45 => "HF_COND",  // Continuous haptic decrease
+        0x7C46 => "HF_BUZZ",  // Haptic buzz toggle
+        0x7C77 => "TL_LO",    // Tri-Layer Lower
+        0x7C78 => "TL_HI",    // Tri-Layer Upper
+        0x7C7C => "AS_TOGG",  // Auto Shift toggle
+        0x7C7D => "AS_ON",
+        0x7C7E => "AS_OFF",
+        0x7C7F => "AS_RPT",   // Auto Shift repeat
+        0x7C80 => "SE_LOCK",  // Secure Lock
+        0x7C81 => "SE_UNLK",  // Secure Unlock
+        0x7C82 => "SE_TOGG",  // Secure Toggle
+        0x7C83 => "SE_REQ",   // Secure Request
+        0x7CA0 => "CM_ON",    // Combo on
+        0x7CA1 => "CM_OFF",
+        0x7CA2 => "CM_TOGG",
+        0x7CB0 => "KL_TOGG",  // Key Lock toggle
+        0x7CC0 => "PM_TOGG",  // Pointing Mode toggle
+        0x7CC1 => "PM_NEXT",
+        0x7CC2 => "PM_PREV",
+        0x7CC3 => "PM_DMOD",  // DPI mode
+        0x7CC4 => "PM_UMOD",  // DPI mode up
         _ => return None,
     })
 }
@@ -721,7 +1075,12 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
         },
         KeycodeGroup {
             name:  "F-Keys",
-            codes: (0x3A..=0x45u16).map(Keycode).collect(),
+            codes: {
+                let mut v: Vec<Keycode> = (0x3A..=0x45u16).map(Keycode).collect();
+                // F13-F24
+                v.extend((0x68..=0x73u16).map(Keycode));
+                v
+            },
         },
         KeycodeGroup {
             name:  "Modifiers",
@@ -730,10 +1089,34 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
         KeycodeGroup {
             name:  "Media",
             codes: vec![
+                Keycode(0xA5), // Play
+                Keycode(0xA6), // Stop
+                Keycode(0xA7), // Prev
                 Keycode(0xA8), // Mute
                 Keycode(0xA9), // VolUp
                 Keycode(0xAA), // VolDn
+                Keycode(0xAB), // Next
+                Keycode(0xAC), // Eject
+                Keycode(0xAD), // Ffwd
+                Keycode(0xAE), // Rwnd
+                Keycode(0xAF), // BriUp
+                Keycode(0xB0), // BriDn
+                Keycode(0xB1), // MSlct
+                Keycode(0xB2), // Mail
+                Keycode(0xB3), // Calc
+                Keycode(0xB4), // MyComp
+                Keycode(0xB5), // WwwSearch
+                Keycode(0xB6), // WwwHome
+                Keycode(0xB7), // WwwBack
+                Keycode(0xB8), // WwwFwd
+                Keycode(0xB9), // WwwStop
+                Keycode(0xBA), // WwwRefresh
+                Keycode(0xBB), // WwwFavorites
             ],
+        },
+        KeycodeGroup {
+            name:  "Mouse",
+            codes: (0x00CDu16..=0x00D9u16).map(Keycode).collect(),
         },
         KeycodeGroup {
             name:  "Layers",
@@ -763,6 +1146,18 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
                 for i in 0..10u16 {
                     v.push(Keycode(0x52C0 | i));
                 }
+                // OSM (one-shot modifiers)
+                // OSM(Ctrl), OSM(Shift), OSM(Alt), OSM(GUI)
+                // OSM(RCtrl), OSM(RShift), OSM(RAlt), OSM(RGUI)
+                // OSM(C+S), OSM(C+A), OSM(C+G), OSM(S+A), OSM(S+G), OSM(A+G)
+                for mods in [0x01u16, 0x02, 0x04, 0x08, 0x11, 0x12, 0x14, 0x18,
+                             0x03, 0x05, 0x09, 0x06, 0x0A, 0x0C] {
+                    v.push(Keycode(0x52A0 | mods));
+                }
+                // PDF(0)..PDF(3)
+                for i in 0..4u16 {
+                    v.push(Keycode(0x52E0 | i));
+                }
                 v
             },
         },
@@ -771,8 +1166,76 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
             codes: (0x53..=0x63u16).map(Keycode).collect(),
         },
         KeycodeGroup {
+            name:  "Intl",
+            codes: vec![
+                Keycode(0x87), // RO
+                Keycode(0x88), // Kana
+                Keycode(0x89), // Yen
+                Keycode(0x8A), // Henkan
+                Keycode(0x8B), // Muhenkan
+                Keycode(0x90), // Hangul
+                Keycode(0x91), // Hanja
+            ],
+        },
+        KeycodeGroup {
             name:  "Tap Dance",
             codes: (0..32u16).map(|i| Keycode(0x5700 | i)).collect(),
+        },
+        KeycodeGroup {
+            name:  "Lighting",
+            codes: vec![
+                Keycode(0x7800), // RGB_TOG
+                Keycode(0x7801), // RGB_MOD
+                Keycode(0x7802), // RGB_RMOD
+                Keycode(0x7803), // RGB_HUI
+                Keycode(0x7804), // RGB_HUD
+                Keycode(0x7805), // RGB_SAI
+                Keycode(0x7806), // RGB_SAD
+                Keycode(0x7807), // RGB_VAI
+                Keycode(0x7808), // RGB_VAD
+                Keycode(0x7809), // RGB_SPI
+                Keycode(0x780A), // RGB_SPD
+                Keycode(0x780B), // RGB_M_P
+                Keycode(0x780C), // RGB_M_B
+                Keycode(0x780D), // RGB_M_R
+                Keycode(0x780E), // RGB_M_SW
+                Keycode(0x780F), // RGB_M_SN
+                Keycode(0x7810), // RGB_M_K
+                Keycode(0x7811), // RGB_M_X
+                Keycode(0x7812), // RGB_M_G
+                Keycode(0x7813), // RGB_M_T
+                Keycode(0x7820), // BL_TOGG
+                Keycode(0x7821), // BL_STEP
+                Keycode(0x7822), // BL_ON
+                Keycode(0x7823), // BL_OFF
+                Keycode(0x7824), // BL_INC
+                Keycode(0x7825), // BL_DEC
+                Keycode(0x7826), // BL_BRTG
+            ],
+        },
+        KeycodeGroup {
+            name:  "Quantum",
+            codes: vec![
+                Keycode(0x7C00), // QK_BOOT
+                Keycode(0x7C01), // QK_RBT
+                Keycode(0x7C02), // DB_TOGG
+                Keycode(0x7C03), // EE_CLR
+                Keycode(0x7C10), // AU_ON
+                Keycode(0x7C11), // AU_OFF
+                Keycode(0x7C12), // AU_TOGG
+                Keycode(0x7C7C), // AS_TOGG
+                Keycode(0x7C7D), // AS_ON
+                Keycode(0x7C7E), // AS_OFF
+                Keycode(0x7CA0), // CM_ON
+                Keycode(0x7CA1), // CM_OFF
+                Keycode(0x7CA2), // CM_TOGG
+                Keycode(0x7CB0), // KL_TOGG
+                Keycode(0x7CC0), // PM_TOGG
+                Keycode(0x7CC1), // PM_NEXT
+                Keycode(0x7CC2), // PM_PREV
+                Keycode(0x7CC3), // PM_DMOD
+                Keycode(0x7CC4), // PM_UMOD
+            ],
         },
         KeycodeGroup {
             name:  "Special",

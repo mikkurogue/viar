@@ -46,6 +46,7 @@ impl ViarApp {
             active_tab: ConnectedTab::Keymap,
             lighting_data: None,
             dynamic_data: None,
+            pointing_data: None,
             detect_rx: None,
             config,
             theme,
@@ -267,6 +268,7 @@ impl ViarApp {
 
         // Try to load dynamic entries (tap dance, combos, key overrides)
         self.dynamic_data = None;
+        self.pointing_data = None;
         if let Some(dev) = &self.connected_device {
             let proto = ViaProtocol::new(dev);
             match proto.get_dynamic_entry_counts() {
@@ -307,6 +309,42 @@ impl ViarApp {
             }
         }
 
+        // Try to load pointing device / trackpad settings via QMK Settings
+        if let Some(dev) = &self.connected_device {
+            let proto = ViaProtocol::new(dev);
+            if proto.has_qmk_settings() {
+                match proto.qmk_settings_query() {
+                    Ok(setting_ids) => {
+                        // Filter to pointing-device-related settings
+                        let pointing_ids: Vec<u16> = setting_ids
+                            .iter()
+                            .copied()
+                            .filter(|id| (0x0100..=0x01FF).contains(id))
+                            .collect();
+                        if !pointing_ids.is_empty() {
+                            info!(count = pointing_ids.len(), "loading pointing device settings");
+                            let mut values = std::collections::HashMap::new();
+                            for &id in &pointing_ids {
+                                match proto.qmk_settings_get(id) {
+                                    Ok(v) => {
+                                        values.insert(id, v);
+                                    }
+                                    Err(e) => {
+                                        debug!(id, error = %e, "failed to read pointing setting");
+                                    }
+                                }
+                            }
+                            self.pointing_data =
+                                Some(crate::types::PointingData::new(pointing_ids, values));
+                        }
+                    }
+                    Err(e) => {
+                        debug!(error = %e, "QMK settings query failed");
+                    }
+                }
+            }
+        }
+
         if let Some(warning) = layout_warning {
             self.set_status(StatusMessage::error(warning));
         }
@@ -321,6 +359,7 @@ impl ViarApp {
             self.keymap_data = None;
             self.lighting_data = None;
             self.dynamic_data = None;
+            self.pointing_data = None;
             self.active_tab = ConnectedTab::Keymap;
             self.refresh();
         }
@@ -332,6 +371,7 @@ impl ViarApp {
         self.protocol_version = None;
         self.lighting_data = None;
         self.dynamic_data = None;
+        self.pointing_data = None;
         self.active_tab = ConnectedTab::Keymap;
         self.screen = AppScreen::NoKeyboards;
         self.set_status(StatusMessage::error(

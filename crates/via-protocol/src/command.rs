@@ -222,6 +222,48 @@ pub struct DynamicEntryCounts {
     pub alt_repeat:   u8,
 }
 
+/// A QMK Settings entry descriptor returned by the query command.
+#[derive(Debug, Clone)]
+pub struct QmkSettingDescriptor {
+    /// Setting ID
+    pub id:    u16,
+    /// Setting type: 1=u8, 2=u16, 4=u32
+    pub qtype: u8,
+    /// Human-readable name (if available from Vial definition)
+    pub name:  Option<String>,
+}
+
+/// Known QMK pointing device settings IDs.
+/// These correspond to the Vial QMK Settings protocol for pointing device configuration.
+pub mod pointing_settings {
+    /// Pointing device DPI (u16)
+    pub const DPI: u16 = 0x0100;
+    /// Pointing device scroll divisor (u8)  
+    pub const SCROLL_DIVISOR: u16 = 0x0101;
+    /// Pointing device scroll divisor horizontal (u8)
+    pub const SCROLL_DIVISOR_H: u16 = 0x0102;
+    /// Pointing device invert X axis (u8, bool)
+    pub const INVERT_X: u16 = 0x0103;
+    /// Pointing device invert Y axis (u8, bool)
+    pub const INVERT_Y: u16 = 0x0104;
+    /// Pointing device invert scroll (u8, bool)
+    pub const INVERT_SCROLL: u16 = 0x0105;
+    /// Drag scroll enable (u8, bool)
+    pub const DRAG_SCROLL: u16 = 0x0106;
+    /// Drag scroll divisor (u8)
+    pub const DRAG_SCROLL_DIVISOR: u16 = 0x0107;
+    /// CPI / DPI for second pointing device (u16)
+    pub const DPI_2: u16 = 0x0108;
+    /// Sniping DPI (u16)
+    pub const SNIPING_DPI: u16 = 0x0109;
+    /// Auto mouse enable (u8, bool)
+    pub const AUTO_MOUSE_ENABLE: u16 = 0x0110;
+    /// Auto mouse layer (u8)
+    pub const AUTO_MOUSE_LAYER: u16 = 0x0111;
+    /// Auto mouse timeout (u16, ms)
+    pub const AUTO_MOUSE_TIMEOUT: u16 = 0x0112;
+}
+
 /// VialRGB sub-command IDs (used as data[1] with CustomGetValue/CustomSetValue).
 /// Note: GET and SET share the same sub-command IDs (0x41, 0x42) but the
 /// parent command (CustomGetValue vs CustomSetValue) differentiates them.
@@ -597,6 +639,65 @@ impl ViaCommand {
                 VialRgbCmd::GetSupportedOrDirectFastSet as u8,
                 (gt & 0xFF) as u8,
                 (gt >> 8) as u8,
+            ],
+        )
+    }
+
+    /// Vial: get QMK Settings value count.
+    /// Used for pointing device/trackpad configuration.
+    /// Response: [count_lo, count_hi]
+    pub fn vial_qmk_settings_query(page: u16) -> Self {
+        Self::with_data(
+            ViaCommandId::VialPrefix,
+            &[0x0E, 0x00, (page & 0xFF) as u8, (page >> 8) as u8],
+        )
+    }
+
+    /// Vial: get a QMK setting value by setting ID.
+    /// Response: [status, value bytes...]
+    pub fn vial_qmk_settings_get(setting_id: u16) -> Self {
+        Self::with_data(
+            ViaCommandId::VialPrefix,
+            &[0x0E, 0x01, (setting_id & 0xFF) as u8, (setting_id >> 8) as u8],
+        )
+    }
+
+    /// Vial: set a QMK setting value.
+    /// Payload: [setting_id_lo, setting_id_hi, value bytes...]
+    pub fn vial_qmk_settings_set(setting_id: u16, value: &[u8]) -> Self {
+        let mut payload = vec![
+            0x0E,
+            0x02,
+            (setting_id & 0xFF) as u8,
+            (setting_id >> 8) as u8,
+        ];
+        payload.extend_from_slice(value);
+        Self::with_data(ViaCommandId::VialPrefix, &payload)
+    }
+
+    /// Vial: reset QMK settings to defaults.
+    pub fn vial_qmk_settings_reset() -> Self {
+        Self::with_data(ViaCommandId::VialPrefix, &[0x0E, 0x03])
+    }
+
+    /// Get encoder keycode for a layer/encoder/direction.
+    pub fn get_encoder(layer: u8, encoder: u8, clockwise: bool) -> Self {
+        Self::with_data(
+            ViaCommandId::DynamicKeymapGetEncoder,
+            &[layer, encoder, clockwise as u8],
+        )
+    }
+
+    /// Set encoder keycode for a layer/encoder/direction.
+    pub fn set_encoder(layer: u8, encoder: u8, clockwise: bool, keycode: u16) -> Self {
+        Self::with_data(
+            ViaCommandId::DynamicKeymapSetEncoder,
+            &[
+                layer,
+                encoder,
+                clockwise as u8,
+                (keycode >> 8) as u8,
+                (keycode & 0xFF) as u8,
             ],
         )
     }
