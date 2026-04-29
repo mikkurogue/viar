@@ -1,9 +1,20 @@
 use eframe::egui;
-use tracing::{info, warn};
-use via_protocol::{pointing_settings, ViaProtocol};
+use tracing::{
+    info,
+    warn,
+};
+use via_protocol::{
+    ViaProtocol,
+    pointing_settings,
+};
 
-use crate::types::{StatusMessage, ViarApp};
-use crate::util::is_disconnect_error;
+use crate::{
+    types::{
+        StatusMessage,
+        ViarApp,
+    },
+    util::is_disconnect_error,
+};
 
 impl ViarApp {
     pub fn render_pointing_tab(&mut self, ui: &mut egui::Ui) {
@@ -18,7 +29,9 @@ impl ViarApp {
             ui.vertical_centered(|ui| {
                 ui.add_space(ui.available_height() / 3.0);
                 ui.heading("No pointing device settings detected");
-                ui.label("This keyboard does not expose pointing device settings via QMK Settings.");
+                ui.label(
+                    "This keyboard does not expose pointing device settings via QMK Settings.",
+                );
             });
             return;
         }
@@ -46,8 +59,7 @@ impl ViarApp {
         ui.separator();
         ui.add_space(8.0);
 
-        let frame = egui::Frame::default()
-            .inner_margin(egui::Margin::symmetric(24, 8));
+        let frame = egui::Frame::default().inner_margin(egui::Margin::symmetric(24, 8));
 
         frame.show(ui, |ui| {
             egui::Grid::new("pointing_settings_grid")
@@ -57,7 +69,9 @@ impl ViarApp {
                 .show(ui, |ui| {
                     // DPI
                     if available.contains(&pointing_settings::DPI) {
-                        let current = self.pointing_data.as_ref()
+                        let current = self
+                            .pointing_data
+                            .as_ref()
                             .and_then(|p| p.get_u16(pointing_settings::DPI))
                             .unwrap_or(400);
                         ui.label(
@@ -67,20 +81,29 @@ impl ViarApp {
                         );
                         let mut val = current as f32;
                         if ui
-                            .add(egui::Slider::new(&mut val, 100.0..=16000.0).step_by(100.0).suffix(" DPI"))
+                            .add(
+                                egui::Slider::new(&mut val, 100.0..=16000.0)
+                                    .step_by(100.0)
+                                    .suffix(" DPI"),
+                            )
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
                                 p.set_u16(pointing_settings::DPI, val as u16);
                             }
-                            self.save_pointing_setting(pointing_settings::DPI, &(val as u16).to_le_bytes());
+                            self.save_pointing_setting(
+                                pointing_settings::DPI,
+                                &(val as u16).to_le_bytes(),
+                            );
                         }
                         ui.end_row();
                     }
 
                     // Sniping DPI
                     if available.contains(&pointing_settings::SNIPING_DPI) {
-                        let current = self.pointing_data.as_ref()
+                        let current = self
+                            .pointing_data
+                            .as_ref()
                             .and_then(|p| p.get_u16(pointing_settings::SNIPING_DPI))
                             .unwrap_or(200);
                         ui.label(
@@ -90,20 +113,29 @@ impl ViarApp {
                         );
                         let mut val = current as f32;
                         if ui
-                            .add(egui::Slider::new(&mut val, 50.0..=4000.0).step_by(50.0).suffix(" DPI"))
+                            .add(
+                                egui::Slider::new(&mut val, 50.0..=4000.0)
+                                    .step_by(50.0)
+                                    .suffix(" DPI"),
+                            )
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
                                 p.set_u16(pointing_settings::SNIPING_DPI, val as u16);
                             }
-                            self.save_pointing_setting(pointing_settings::SNIPING_DPI, &(val as u16).to_le_bytes());
+                            self.save_pointing_setting(
+                                pointing_settings::SNIPING_DPI,
+                                &(val as u16).to_le_bytes(),
+                            );
                         }
                         ui.end_row();
                     }
 
                     // Scroll divisor
                     if available.contains(&pointing_settings::SCROLL_DIVISOR) {
-                        let current = self.pointing_data.as_ref()
+                        let current = self
+                            .pointing_data
+                            .as_ref()
                             .and_then(|p| p.get_u8(pointing_settings::SCROLL_DIVISOR))
                             .unwrap_or(8);
                         ui.label(
@@ -119,14 +151,19 @@ impl ViarApp {
                             if let Some(p) = self.pointing_data.as_mut() {
                                 p.set_u8(pointing_settings::SCROLL_DIVISOR, val as u8);
                             }
-                            self.save_pointing_setting(pointing_settings::SCROLL_DIVISOR, &[val as u8]);
+                            self.save_pointing_setting(
+                                pointing_settings::SCROLL_DIVISOR,
+                                &[val as u8],
+                            );
                         }
                         ui.end_row();
                     }
 
                     // Drag scroll divisor
                     if available.contains(&pointing_settings::DRAG_SCROLL_DIVISOR) {
-                        let current = self.pointing_data.as_ref()
+                        let current = self
+                            .pointing_data
+                            .as_ref()
                             .and_then(|p| p.get_u8(pointing_settings::DRAG_SCROLL_DIVISOR))
                             .unwrap_or(8);
                         ui.label(
@@ -142,7 +179,10 @@ impl ViarApp {
                             if let Some(p) = self.pointing_data.as_mut() {
                                 p.set_u8(pointing_settings::DRAG_SCROLL_DIVISOR, val as u8);
                             }
-                            self.save_pointing_setting(pointing_settings::DRAG_SCROLL_DIVISOR, &[val as u8]);
+                            self.save_pointing_setting(
+                                pointing_settings::DRAG_SCROLL_DIVISOR,
+                                &[val as u8],
+                            );
                         }
                         ui.end_row();
                     }
@@ -158,7 +198,9 @@ impl ViarApp {
 
                     for (id, label) in toggles {
                         if available.contains(&id) {
-                            let current = self.pointing_data.as_ref()
+                            let current = self
+                                .pointing_data
+                                .as_ref()
                                 .and_then(|p| p.get_u8(id))
                                 .unwrap_or(0);
                             ui.label(
@@ -180,7 +222,9 @@ impl ViarApp {
 
                     // Auto mouse layer
                     if available.contains(&pointing_settings::AUTO_MOUSE_LAYER) {
-                        let current = self.pointing_data.as_ref()
+                        let current = self
+                            .pointing_data
+                            .as_ref()
                             .and_then(|p| p.get_u8(pointing_settings::AUTO_MOUSE_LAYER))
                             .unwrap_or(0);
                         ui.label(
@@ -196,14 +240,19 @@ impl ViarApp {
                             if let Some(p) = self.pointing_data.as_mut() {
                                 p.set_u8(pointing_settings::AUTO_MOUSE_LAYER, val as u8);
                             }
-                            self.save_pointing_setting(pointing_settings::AUTO_MOUSE_LAYER, &[val as u8]);
+                            self.save_pointing_setting(
+                                pointing_settings::AUTO_MOUSE_LAYER,
+                                &[val as u8],
+                            );
                         }
                         ui.end_row();
                     }
 
                     // Auto mouse timeout
                     if available.contains(&pointing_settings::AUTO_MOUSE_TIMEOUT) {
-                        let current = self.pointing_data.as_ref()
+                        let current = self
+                            .pointing_data
+                            .as_ref()
                             .and_then(|p| p.get_u16(pointing_settings::AUTO_MOUSE_TIMEOUT))
                             .unwrap_or(500);
                         ui.label(
@@ -213,13 +262,20 @@ impl ViarApp {
                         );
                         let mut val = current as f32;
                         if ui
-                            .add(egui::Slider::new(&mut val, 50.0..=5000.0).step_by(50.0).suffix(" ms"))
+                            .add(
+                                egui::Slider::new(&mut val, 50.0..=5000.0)
+                                    .step_by(50.0)
+                                    .suffix(" ms"),
+                            )
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
                                 p.set_u16(pointing_settings::AUTO_MOUSE_TIMEOUT, val as u16);
                             }
-                            self.save_pointing_setting(pointing_settings::AUTO_MOUSE_TIMEOUT, &(val as u16).to_le_bytes());
+                            self.save_pointing_setting(
+                                pointing_settings::AUTO_MOUSE_TIMEOUT,
+                                &(val as u16).to_le_bytes(),
+                            );
                         }
                         ui.end_row();
                     }
@@ -265,9 +321,7 @@ impl ViarApp {
                 if is_disconnect_error(&msg) {
                     self.handle_disconnect();
                 } else {
-                    self.set_status(StatusMessage::error(format!(
-                        "Failed to save setting: {e}"
-                    )));
+                    self.set_status(StatusMessage::error(format!("Failed to save setting: {e}")));
                 }
             }
         }
