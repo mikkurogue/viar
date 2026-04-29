@@ -399,23 +399,24 @@ impl ViarApp {
     }
 
     fn save_key_override(&mut self, idx: usize, entry: &KeyOverrideEntry) {
-        if let Some(dev) = &self.connected_device {
-            let proto = ViaProtocol::new(dev);
-            match proto.set_key_override(idx as u8, entry) {
-                Ok(()) => {
-                    info!(idx, "key override saved to device");
-                    self.set_status(StatusMessage::info(format!("KO {idx} saved")));
-                }
-                Err(e) => {
-                    let msg = format!("{e}");
-                    warn!(error = %e, idx, "failed to save key override");
-                    if is_disconnect_error(&msg) {
-                        self.handle_disconnect();
-                    } else {
-                        self.set_status(StatusMessage::error(format!(
-                            "Failed to save KO {idx}: {e}"
-                        )));
-                    }
+        let Some(dev) = &self.connected_device else {
+            return;
+        };
+        let proto = ViaProtocol::new(dev);
+        match proto.set_key_override(idx as u8, entry) {
+            Ok(()) => {
+                info!(idx, "key override saved to device");
+                self.set_status(StatusMessage::info(format!("KO {idx} saved")));
+            }
+            Err(e) => {
+                let msg = format!("{e}");
+                warn!(error = %e, idx, "failed to save key override");
+                if is_disconnect_error(&msg) {
+                    self.handle_disconnect();
+                } else {
+                    self.set_status(StatusMessage::error(format!(
+                        "Failed to save KO {idx}: {e}"
+                    )));
                 }
             }
         }

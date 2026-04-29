@@ -303,9 +303,7 @@ impl Keycode {
                     format!("SH({kc_name})")
                 }
             }
-            KeycodeCategory::Mouse => {
-                mouse_keycode_name(raw).unwrap_or("Mouse??").to_string()
-            }
+            KeycodeCategory::Mouse => mouse_keycode_name(raw).unwrap_or("Mouse??").to_string(),
             _ => format!("{raw:#06x}"),
         }
     }
@@ -409,11 +407,9 @@ impl Keycode {
                 format!("Tap Dance {idx} — different actions for tap/hold/double-tap")
             }
             KeycodeCategory::TriLayer => "Tri-Layer key".into(),
-            KeycodeCategory::Mouse => {
-                mouse_keycode_description(self.0)
-                    .unwrap_or("Mouse key")
-                    .to_string()
-            }
+            KeycodeCategory::Mouse => mouse_keycode_description(self.0)
+                .unwrap_or("Mouse key")
+                .to_string(),
             KeycodeCategory::SwapHands => {
                 let kc = self.0 & 0xFF;
                 match kc {
@@ -430,21 +426,15 @@ impl Keycode {
                     }
                 }
             }
-            KeycodeCategory::Magic => {
-                magic_keycode_name(self.0)
-                    .map(|n| format!("Magic: {n}"))
-                    .unwrap_or_else(|| format!("Magic keycode (0x{:04X})", self.0))
-            }
-            KeycodeCategory::Lighting => {
-                lighting_keycode_name(self.0)
-                    .map(|n| format!("Lighting: {n}"))
-                    .unwrap_or_else(|| format!("Lighting keycode (0x{:04X})", self.0))
-            }
-            KeycodeCategory::Quantum => {
-                quantum_keycode_name(self.0)
-                    .map(|n| format!("Quantum: {n}"))
-                    .unwrap_or_else(|| format!("Quantum keycode (0x{:04X})", self.0))
-            }
+            KeycodeCategory::Magic => magic_keycode_name(self.0)
+                .map(|n| format!("Magic: {n}"))
+                .unwrap_or_else(|| format!("Magic keycode (0x{:04X})", self.0)),
+            KeycodeCategory::Lighting => lighting_keycode_name(self.0)
+                .map(|n| format!("Lighting: {n}"))
+                .unwrap_or_else(|| format!("Lighting keycode (0x{:04X})", self.0)),
+            KeycodeCategory::Quantum => quantum_keycode_name(self.0)
+                .map(|n| format!("Quantum: {n}"))
+                .unwrap_or_else(|| format!("Quantum keycode (0x{:04X})", self.0)),
             _ => {
                 let name = self.name();
                 format!("{name} (0x{:04X})", self.0)
@@ -850,22 +840,22 @@ fn mouse_keycode_description(kc: u16) -> Option<&'static str> {
 /// Look up the name of a Magic keycode (0x7000-0x70FF range).
 fn magic_keycode_name(kc: u16) -> Option<&'static str> {
     Some(match kc {
-        0x7000 => "MG_SWNU",  // Swap Control and GUI (on)
-        0x7001 => "MG_SWCU",  // Swap Control and Caps Lock (on)
-        0x7002 => "MG_SWLA",  // Swap Left Alt and GUI (on)
-        0x7003 => "MG_SWRA",  // Swap Right Alt and GUI (on)
-        0x7004 => "MG_NKRO",  // N-Key Rollover (on)
-        0x7005 => "MG_GESC",  // Grave Escape (on)
-        0x7006 => "MG_BSPC",  // Swap Backspace and Backslash (on)
-        0x7007 => "CG_NORM",  // Unswap Control and GUI
-        0x7008 => "MG_UNCC",  // Unswap Caps Lock
-        0x7009 => "MG_UNLA",  // Unswap Left Alt and GUI
-        0x700A => "MG_UNRA",  // Unswap Right Alt and GUI
-        0x700B => "MG_UNNK",  // N-Key Rollover (off)
-        0x700C => "MG_UNGE",  // Grave Escape (off)
-        0x700D => "MG_UNBS",  // Unswap Backspace
-        0x700E => "CG_TOGG",  // Toggle Control and GUI swap
-        0x700F => "MG_TOGN",  // Toggle NKRO
+        0x7000 => "MG_SWNU", // Swap Control and GUI (on)
+        0x7001 => "MG_SWCU", // Swap Control and Caps Lock (on)
+        0x7002 => "MG_SWLA", // Swap Left Alt and GUI (on)
+        0x7003 => "MG_SWRA", // Swap Right Alt and GUI (on)
+        0x7004 => "MG_NKRO", // N-Key Rollover (on)
+        0x7005 => "MG_GESC", // Grave Escape (on)
+        0x7006 => "MG_BSPC", // Swap Backspace and Backslash (on)
+        0x7007 => "CG_NORM", // Unswap Control and GUI
+        0x7008 => "MG_UNCC", // Unswap Caps Lock
+        0x7009 => "MG_UNLA", // Unswap Left Alt and GUI
+        0x700A => "MG_UNRA", // Unswap Right Alt and GUI
+        0x700B => "MG_UNNK", // N-Key Rollover (off)
+        0x700C => "MG_UNGE", // Grave Escape (off)
+        0x700D => "MG_UNBS", // Unswap Backspace
+        0x700E => "CG_TOGG", // Toggle Control and GUI swap
+        0x700F => "MG_TOGN", // Toggle NKRO
         _ => return None,
     })
 }
@@ -899,7 +889,7 @@ fn lighting_keycode_name(kc: u16) -> Option<&'static str> {
         0x7823 => "BL_OFF",
         0x7824 => "BL_INC",
         0x7825 => "BL_DEC",
-        0x7826 => "BL_BRTG",  // Backlight breathing toggle
+        0x7826 => "BL_BRTG", // Backlight breathing toggle
         _ => return None,
     })
 }
@@ -907,47 +897,47 @@ fn lighting_keycode_name(kc: u16) -> Option<&'static str> {
 /// Look up the name of a Quantum keycode (0x7C00-0x7DFF range).
 fn quantum_keycode_name(kc: u16) -> Option<&'static str> {
     Some(match kc {
-        0x7C00 => "QK_BOOT",  // Bootloader
-        0x7C01 => "QK_RBT",   // Reboot (soft reset)
-        0x7C02 => "DB_TOGG",  // Debug toggle
-        0x7C03 => "EE_CLR",   // EEPROM clear
-        0x7C10 => "AU_ON",    // Audio on
+        0x7C00 => "QK_BOOT", // Bootloader
+        0x7C01 => "QK_RBT",  // Reboot (soft reset)
+        0x7C02 => "DB_TOGG", // Debug toggle
+        0x7C03 => "EE_CLR",  // EEPROM clear
+        0x7C10 => "AU_ON",   // Audio on
         0x7C11 => "AU_OFF",
         0x7C12 => "AU_TOGG",
-        0x7C20 => "MU_ON",    // Music on
+        0x7C20 => "MU_ON", // Music on
         0x7C21 => "MU_OFF",
         0x7C22 => "MU_TOGG",
-        0x7C23 => "MU_NEXT",  // Music mode next
-        0x7C30 => "CK_TOGG",  // Clicky toggle
+        0x7C23 => "MU_NEXT", // Music mode next
+        0x7C30 => "CK_TOGG", // Clicky toggle
         0x7C31 => "CK_RST",
         0x7C32 => "CK_UP",
         0x7C33 => "CK_DN",
-        0x7C40 => "HF_TOGG",  // Haptic feedback toggle
+        0x7C40 => "HF_TOGG", // Haptic feedback toggle
         0x7C41 => "HF_RST",
         0x7C42 => "HF_NEXT",
-        0x7C43 => "HF_CONT",  // Continuous haptic
-        0x7C44 => "HF_CONI",  // Continuous haptic increase
-        0x7C45 => "HF_COND",  // Continuous haptic decrease
-        0x7C46 => "HF_BUZZ",  // Haptic buzz toggle
-        0x7C77 => "TL_LO",    // Tri-Layer Lower
-        0x7C78 => "TL_HI",    // Tri-Layer Upper
-        0x7C7C => "AS_TOGG",  // Auto Shift toggle
+        0x7C43 => "HF_CONT", // Continuous haptic
+        0x7C44 => "HF_CONI", // Continuous haptic increase
+        0x7C45 => "HF_COND", // Continuous haptic decrease
+        0x7C46 => "HF_BUZZ", // Haptic buzz toggle
+        0x7C77 => "TL_LO",   // Tri-Layer Lower
+        0x7C78 => "TL_HI",   // Tri-Layer Upper
+        0x7C7C => "AS_TOGG", // Auto Shift toggle
         0x7C7D => "AS_ON",
         0x7C7E => "AS_OFF",
-        0x7C7F => "AS_RPT",   // Auto Shift repeat
-        0x7C80 => "SE_LOCK",  // Secure Lock
-        0x7C81 => "SE_UNLK",  // Secure Unlock
-        0x7C82 => "SE_TOGG",  // Secure Toggle
-        0x7C83 => "SE_REQ",   // Secure Request
-        0x7CA0 => "CM_ON",    // Combo on
+        0x7C7F => "AS_RPT",  // Auto Shift repeat
+        0x7C80 => "SE_LOCK", // Secure Lock
+        0x7C81 => "SE_UNLK", // Secure Unlock
+        0x7C82 => "SE_TOGG", // Secure Toggle
+        0x7C83 => "SE_REQ",  // Secure Request
+        0x7CA0 => "CM_ON",   // Combo on
         0x7CA1 => "CM_OFF",
         0x7CA2 => "CM_TOGG",
-        0x7CB0 => "KL_TOGG",  // Key Lock toggle
-        0x7CC0 => "PM_TOGG",  // Pointing Mode toggle
+        0x7CB0 => "KL_TOGG", // Key Lock toggle
+        0x7CC0 => "PM_TOGG", // Pointing Mode toggle
         0x7CC1 => "PM_NEXT",
         0x7CC2 => "PM_PREV",
-        0x7CC3 => "PM_DMOD",  // DPI mode
-        0x7CC4 => "PM_UMOD",  // DPI mode up
+        0x7CC3 => "PM_DMOD", // DPI mode
+        0x7CC4 => "PM_UMOD", // DPI mode up
         _ => return None,
     })
 }
@@ -1150,8 +1140,10 @@ pub fn keycode_groups() -> Vec<KeycodeGroup> {
                 // OSM(Ctrl), OSM(Shift), OSM(Alt), OSM(GUI)
                 // OSM(RCtrl), OSM(RShift), OSM(RAlt), OSM(RGUI)
                 // OSM(C+S), OSM(C+A), OSM(C+G), OSM(S+A), OSM(S+G), OSM(A+G)
-                for mods in [0x01u16, 0x02, 0x04, 0x08, 0x11, 0x12, 0x14, 0x18,
-                             0x03, 0x05, 0x09, 0x06, 0x0A, 0x0C] {
+                for mods in [
+                    0x01u16, 0x02, 0x04, 0x08, 0x11, 0x12, 0x14, 0x18, 0x03, 0x05, 0x09, 0x06,
+                    0x0A, 0x0C,
+                ] {
                     v.push(Keycode(0x52A0 | mods));
                 }
                 // PDF(0)..PDF(3)

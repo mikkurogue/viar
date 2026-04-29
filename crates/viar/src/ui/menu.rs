@@ -112,16 +112,18 @@ impl ViarApp {
                     });
                 });
         }
-        if let Some(confirmed) = confirm_result {
-            if confirmed {
+        match confirm_result {
+            Some(true) => {
                 if let Some(dialog) = self.confirm_dialog.take() {
                     match dialog.action {
                         ConfirmAction::Import => self.import_keymap(),
                     }
                 }
-            } else {
+            }
+            Some(false) => {
                 self.confirm_dialog = None;
             }
+            None => {}
         }
     }
 }

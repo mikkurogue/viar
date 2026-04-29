@@ -298,23 +298,24 @@ impl ViarApp {
     }
 
     fn save_tap_dance(&mut self, idx: usize, entry: &TapDanceEntry) {
-        if let Some(dev) = &self.connected_device {
-            let proto = ViaProtocol::new(dev);
-            match proto.set_tap_dance(idx as u8, entry) {
-                Ok(()) => {
-                    info!(idx, "tap dance saved to device");
-                    self.set_status(StatusMessage::info(format!("TD({idx}) saved")));
-                }
-                Err(e) => {
-                    let msg = format!("{e}");
-                    warn!(error = %e, idx, "failed to save tap dance");
-                    if is_disconnect_error(&msg) {
-                        self.handle_disconnect();
-                    } else {
-                        self.set_status(StatusMessage::error(format!(
-                            "Failed to save TD({idx}): {e}"
-                        )));
-                    }
+        let Some(dev) = &self.connected_device else {
+            return;
+        };
+        let proto = ViaProtocol::new(dev);
+        match proto.set_tap_dance(idx as u8, entry) {
+            Ok(()) => {
+                info!(idx, "tap dance saved to device");
+                self.set_status(StatusMessage::info(format!("TD({idx}) saved")));
+            }
+            Err(e) => {
+                let msg = format!("{e}");
+                warn!(error = %e, idx, "failed to save tap dance");
+                if is_disconnect_error(&msg) {
+                    self.handle_disconnect();
+                } else {
+                    self.set_status(StatusMessage::error(format!(
+                        "Failed to save TD({idx}): {e}"
+                    )));
                 }
             }
         }

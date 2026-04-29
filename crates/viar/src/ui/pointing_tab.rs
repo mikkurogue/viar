@@ -13,9 +13,8 @@ impl ViarApp {
         };
 
         let available = pointing.available_settings.clone();
-        let has_any = !available.is_empty();
 
-        if !has_any {
+        if available.is_empty() {
             ui.vertical_centered(|ui| {
                 ui.add_space(ui.available_height() / 3.0);
                 ui.heading("No pointing device settings detected");
@@ -248,54 +247,54 @@ impl ViarApp {
     }
 
     fn save_pointing_setting(&mut self, setting_id: u16, value: &[u8]) {
-        if let Some(dev) = &self.connected_device {
-            let proto = ViaProtocol::new(dev);
-            match proto.qmk_settings_set(setting_id, value) {
-                Ok(()) => {
-                    info!(setting_id, "pointing setting saved");
-                    self.set_status(StatusMessage::info(format!(
-                        "Setting 0x{:04X} saved",
-                        setting_id
+        let Some(dev) = &self.connected_device else {
+            return;
+        };
+        let proto = ViaProtocol::new(dev);
+        match proto.qmk_settings_set(setting_id, value) {
+            Ok(()) => {
+                info!(setting_id, "pointing setting saved");
+                self.set_status(StatusMessage::info(format!(
+                    "Setting 0x{:04X} saved",
+                    setting_id
+                )));
+            }
+            Err(e) => {
+                let msg = format!("{e}");
+                warn!(error = %e, setting_id, "failed to save pointing setting");
+                if is_disconnect_error(&msg) {
+                    self.handle_disconnect();
+                } else {
+                    self.set_status(StatusMessage::error(format!(
+                        "Failed to save setting: {e}"
                     )));
-                }
-                Err(e) => {
-                    let msg = format!("{e}");
-                    warn!(error = %e, setting_id, "failed to save pointing setting");
-                    if is_disconnect_error(&msg) {
-                        self.handle_disconnect();
-                    } else {
-                        self.set_status(StatusMessage::error(format!(
-                            "Failed to save setting: {e}"
-                        )));
-                    }
                 }
             }
         }
     }
 
     fn reset_pointing_settings(&mut self) {
-        let result = if let Some(dev) = &self.connected_device {
-            let proto = ViaProtocol::new(dev);
-            match proto.qmk_settings_reset() {
-                Ok(()) => {
-                    // Re-read values
-                    let ids = self
-                        .pointing_data
-                        .as_ref()
-                        .map(|p| p.available_settings.clone())
-                        .unwrap_or_default();
-                    let mut values = std::collections::HashMap::new();
-                    for &id in &ids {
-                        if let Ok(v) = proto.qmk_settings_get(id) {
-                            values.insert(id, v);
-                        }
-                    }
-                    Ok((ids, values))
-                }
-                Err(e) => Err(e),
-            }
-        } else {
+        let Some(dev) = &self.connected_device else {
             return;
+        };
+        let proto = ViaProtocol::new(dev);
+        let result = match proto.qmk_settings_reset() {
+            Ok(()) => {
+                // Re-read values
+                let ids = self
+                    .pointing_data
+                    .as_ref()
+                    .map(|p| p.available_settings.clone())
+                    .unwrap_or_default();
+                let mut values = std::collections::HashMap::new();
+                for &id in &ids {
+                    if let Ok(v) = proto.qmk_settings_get(id) {
+                        values.insert(id, v);
+                    }
+                }
+                Ok((ids, values))
+            }
+            Err(e) => Err(e),
         };
 
         match result {

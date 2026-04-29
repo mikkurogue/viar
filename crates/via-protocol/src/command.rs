@@ -658,7 +658,12 @@ impl ViaCommand {
     pub fn vial_qmk_settings_get(setting_id: u16) -> Self {
         Self::with_data(
             ViaCommandId::VialPrefix,
-            &[0x0E, 0x01, (setting_id & 0xFF) as u8, (setting_id >> 8) as u8],
+            &[
+                0x0E,
+                0x01,
+                (setting_id & 0xFF) as u8,
+                (setting_id >> 8) as u8,
+            ],
         )
     }
 

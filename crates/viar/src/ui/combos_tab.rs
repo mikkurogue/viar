@@ -262,23 +262,24 @@ impl ViarApp {
     }
 
     fn save_combo(&mut self, idx: usize, entry: &ComboEntry) {
-        if let Some(dev) = &self.connected_device {
-            let proto = ViaProtocol::new(dev);
-            match proto.set_combo(idx as u8, entry) {
-                Ok(()) => {
-                    info!(idx, "combo saved to device");
-                    self.set_status(StatusMessage::info(format!("Combo {idx} saved")));
-                }
-                Err(e) => {
-                    let msg = format!("{e}");
-                    warn!(error = %e, idx, "failed to save combo");
-                    if is_disconnect_error(&msg) {
-                        self.handle_disconnect();
-                    } else {
-                        self.set_status(StatusMessage::error(format!(
-                            "Failed to save Combo {idx}: {e}"
-                        )));
-                    }
+        let Some(dev) = &self.connected_device else {
+            return;
+        };
+        let proto = ViaProtocol::new(dev);
+        match proto.set_combo(idx as u8, entry) {
+            Ok(()) => {
+                info!(idx, "combo saved to device");
+                self.set_status(StatusMessage::info(format!("Combo {idx} saved")));
+            }
+            Err(e) => {
+                let msg = format!("{e}");
+                warn!(error = %e, idx, "failed to save combo");
+                if is_disconnect_error(&msg) {
+                    self.handle_disconnect();
+                } else {
+                    self.set_status(StatusMessage::error(format!(
+                        "Failed to save Combo {idx}: {e}"
+                    )));
                 }
             }
         }
