@@ -36,11 +36,11 @@ impl KeyPosition {
         Self {
             x,
             y,
-            w: 1.0,
-            h: 1.0,
-            r: 0.0,
-            rx: 0.0,
-            ry: 0.0,
+            w: 1.0_f32,
+            h: 1.0_f32,
+            r: 0.0_f32,
+            rx: 0.0_f32,
+            ry: 0.0_f32,
             row,
             col,
         }
@@ -173,16 +173,16 @@ fn parse_kle_keymap(keymap: &[Value]) -> Result<Vec<KeyPosition>, String> {
 
     // Current position state
     let mut cur_x: f32;
-    let mut cur_y: f32 = -1.0; // will be incremented to 0.0 on first row
+    let mut cur_y: f32 = -1.0_f32; // will be incremented to 0.0 on first row
 
     // Per-key properties (reset after each key)
-    let mut next_w: f32 = 1.0;
-    let mut next_h: f32 = 1.0;
+    let mut next_w: f32 = 1.0_f32;
+    let mut next_h: f32 = 1.0_f32;
 
     // Rotation state (persists until changed)
-    let mut cur_r: f32 = 0.0;
-    let mut cur_rx: f32 = 0.0;
-    let mut cur_ry: f32 = 0.0;
+    let mut cur_r: f32 = 0.0_f32;
+    let mut cur_rx: f32 = 0.0_f32;
+    let mut cur_ry: f32 = 0.0_f32;
 
     for row_value in keymap {
         let row_arr = row_value.as_array().ok_or("keymap row is not an array")?;

@@ -136,7 +136,7 @@ fn paint_hue_bar(ui: &mut egui::Ui, hue: &mut u8, sat: u8, brightness: u8, width
     painter.rect_stroke(
         rect,
         egui::CornerRadius::same(3),
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 70, 80)),
+        egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(70, 70, 80)),
         egui::StrokeKind::Outside,
     );
 
@@ -145,7 +145,7 @@ fn paint_hue_bar(ui: &mut egui::Ui, hue: &mut u8, sat: u8, brightness: u8, width
     painter.vline(
         indicator_x,
         rect.y_range(),
-        egui::Stroke::new(2.0, egui::Color32::WHITE),
+        egui::Stroke::new(2.0_f32, egui::Color32::WHITE),
     );
     painter.circle_filled(
         egui::pos2(indicator_x, rect.top()),
@@ -190,7 +190,7 @@ fn paint_sat_bar(ui: &mut egui::Ui, sat: &mut u8, hue: u8, brightness: u8, width
     painter.rect_stroke(
         rect,
         egui::CornerRadius::same(3),
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 70, 80)),
+        egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(70, 70, 80)),
         egui::StrokeKind::Outside,
     );
 
@@ -198,7 +198,7 @@ fn paint_sat_bar(ui: &mut egui::Ui, sat: &mut u8, hue: u8, brightness: u8, width
     painter.vline(
         indicator_x,
         rect.y_range(),
-        egui::Stroke::new(2.0, egui::Color32::WHITE),
+        egui::Stroke::new(2.0_f32, egui::Color32::WHITE),
     );
     painter.circle_filled(
         egui::pos2(indicator_x, rect.top()),
@@ -249,7 +249,7 @@ fn paint_brightness_bar(
     painter.rect_stroke(
         rect,
         egui::CornerRadius::same(3),
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(70, 70, 80)),
+        egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(70, 70, 80)),
         egui::StrokeKind::Outside,
     );
 
@@ -257,7 +257,7 @@ fn paint_brightness_bar(
     painter.vline(
         indicator_x,
         rect.y_range(),
-        egui::Stroke::new(2.0, egui::Color32::WHITE),
+        egui::Stroke::new(2.0_f32, egui::Color32::WHITE),
     );
     painter.circle_filled(
         egui::pos2(indicator_x, rect.top()),
@@ -312,7 +312,7 @@ impl ViarApp {
                 painter.rect_stroke(
                     rect,
                     egui::CornerRadius::same(8),
-                    egui::Stroke::new(1.0, egui::Color32::from_rgb(80, 80, 90)),
+                    egui::Stroke::new(1.0_f32, egui::Color32::from_rgb(80, 80, 90)),
                     egui::StrokeKind::Outside,
                 );
 

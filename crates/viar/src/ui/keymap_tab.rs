@@ -539,73 +539,72 @@ impl ViarApp {
                                 picked_kc = render_keycode_builder(ui, raw_kc);
                             });
                     } else {
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
+                                    if let Some(group) = self.picker_groups.get(group_idx) {
+                                        for kc in &group.codes {
+                                            let name = kc.name();
+                                            let is_current = kc.0 == raw_kc;
+                                            let size = egui::vec2(44.0, 28.0);
+                                            let (rect, response) =
+                                                ui.allocate_exact_size(size, egui::Sense::click());
+                                            let is_hovered = response.hovered();
 
-                    egui::ScrollArea::vertical()
-                        .auto_shrink([false, false])
-                        .show(ui, |ui| {
-                            ui.horizontal_wrapped(|ui| {
-                                ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
-                                if let Some(group) = self.picker_groups.get(group_idx) {
-                                    for kc in &group.codes {
-                                        let name = kc.name();
-                                        let is_current = kc.0 == raw_kc;
-                                        let size = egui::vec2(44.0, 28.0);
-                                        let (rect, response) =
-                                            ui.allocate_exact_size(size, egui::Sense::click());
-                                        let is_hovered = response.hovered();
+                                            let bg = if is_current {
+                                                egui::Color32::from_rgb(70, 130, 180)
+                                            } else if is_hovered {
+                                                egui::Color32::from_rgb(80, 80, 90)
+                                            } else {
+                                                kc.category().bg()
+                                            };
+                                            let border = if is_current {
+                                                egui::Color32::from_rgb(100, 180, 255)
+                                            } else {
+                                                egui::Color32::from_rgb(60, 60, 65)
+                                            };
+                                            let text_col = if is_current {
+                                                egui::Color32::WHITE
+                                            } else if kc.0 == 0 || kc.0 == 1 {
+                                                egui::Color32::from_rgb(100, 100, 110)
+                                            } else {
+                                                egui::Color32::from_rgb(220, 220, 230)
+                                            };
 
-                                        let bg = if is_current {
-                                            egui::Color32::from_rgb(70, 130, 180)
-                                        } else if is_hovered {
-                                            egui::Color32::from_rgb(80, 80, 90)
-                                        } else {
-                                            kc.category().bg()
-                                        };
-                                        let border = if is_current {
-                                            egui::Color32::from_rgb(100, 180, 255)
-                                        } else {
-                                            egui::Color32::from_rgb(60, 60, 65)
-                                        };
-                                        let text_col = if is_current {
-                                            egui::Color32::WHITE
-                                        } else if kc.0 == 0 || kc.0 == 1 {
-                                            egui::Color32::from_rgb(100, 100, 110)
-                                        } else {
-                                            egui::Color32::from_rgb(220, 220, 230)
-                                        };
+                                            let rounding = egui::CornerRadius::same(4);
+                                            ui.painter().rect_filled(rect, rounding, bg);
+                                            ui.painter().rect_stroke(
+                                                rect,
+                                                rounding,
+                                                egui::Stroke::new(1.0_f32, border),
+                                                egui::StrokeKind::Outside,
+                                            );
 
-                                        let rounding = egui::CornerRadius::same(4);
-                                        ui.painter().rect_filled(rect, rounding, bg);
-                                        ui.painter().rect_stroke(
-                                            rect,
-                                            rounding,
-                                            egui::Stroke::new(1.0, border),
-                                            egui::StrokeKind::Outside,
-                                        );
+                                            let font_size = if name.len() <= 2 {
+                                                12.0
+                                            } else if name.len() <= 5 {
+                                                10.5
+                                            } else {
+                                                8.5
+                                            };
+                                            ui.painter().text(
+                                                rect.center(),
+                                                egui::Align2::CENTER_CENTER,
+                                                &name,
+                                                egui::FontId::proportional(font_size),
+                                                text_col,
+                                            );
 
-                                        let font_size = if name.len() <= 2 {
-                                            12.0
-                                        } else if name.len() <= 5 {
-                                            10.5
-                                        } else {
-                                            8.5
-                                        };
-                                        ui.painter().text(
-                                            rect.center(),
-                                            egui::Align2::CENTER_CENTER,
-                                            &name,
-                                            egui::FontId::proportional(font_size),
-                                            text_col,
-                                        );
-
-                                        if response.clicked() {
-                                            picked_kc = Some(kc.0);
+                                            if response.clicked() {
+                                                picked_kc = Some(kc.0);
+                                            }
+                                            response.on_hover_text(kc.description());
                                         }
-                                        response.on_hover_text(kc.description());
                                     }
-                                }
+                                });
                             });
-                        });
                     } // end else (grid view)
 
                     if let Some(new_kc) = picked_kc {
@@ -958,210 +957,226 @@ impl ViarApp {
 /// Returns Some(keycode) if the user constructed and applied a keycode.
 /// Free function to avoid borrow conflicts with self in keymap_tab closures.
 fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
-        let builder_type_id = egui::Id::new("builder_type");
-        let builder_layer_id = egui::Id::new("builder_layer");
-        let builder_mods_id = egui::Id::new("builder_mods");
-        let builder_key_id = egui::Id::new("builder_key");
+    let builder_type_id = egui::Id::new("builder_type");
+    let builder_layer_id = egui::Id::new("builder_layer");
+    let builder_mods_id = egui::Id::new("builder_mods");
+    let builder_key_id = egui::Id::new("builder_key");
 
-        // Builder type selector
-        let mut builder_type: usize = ui
-            .memory(|mem| mem.data.get_temp(builder_type_id))
-            .unwrap_or(0);
+    // Builder type selector
+    let mut builder_type: usize = ui
+        .memory(|mem| mem.data.get_temp(builder_type_id))
+        .unwrap_or(0);
 
-        ui.horizontal(|ui| {
-            let types = ["LT(layer,key)", "MT(mod,key)", "Mod+Key", "OSM(mod)"];
-            for (i, name) in types.iter().enumerate() {
-                let sel = builder_type == i;
-                let text = egui::RichText::new(*name).size(10.5);
-                if ui
-                    .selectable_label(sel, text)
-                    .clicked()
-                {
-                    builder_type = i;
-                    ui.memory_mut(|mem| mem.data.insert_temp(builder_type_id, builder_type));
-                }
+    ui.horizontal(|ui| {
+        let types = ["LT(layer,key)", "MT(mod,key)", "Mod+Key", "OSM(mod)"];
+        for (i, name) in types.iter().enumerate() {
+            let sel = builder_type == i;
+            let text = egui::RichText::new(*name).size(10.5);
+            if ui.selectable_label(sel, text).clicked() {
+                builder_type = i;
+                ui.memory_mut(|mem| mem.data.insert_temp(builder_type_id, builder_type));
             }
-        });
-
-        ui.add_space(4.0);
-
-        // State
-        let kc = Keycode(current_kc);
-        let mut layer: u8 = ui
-            .memory(|mem| mem.data.get_temp::<u8>(builder_layer_id))
-            .unwrap_or_else(|| kc.layer());
-        let mut mods: u8 = ui
-            .memory(|mem| mem.data.get_temp::<u8>(builder_mods_id))
-            .unwrap_or_else(|| kc.mod_mask());
-        let mut base_key: u16 = ui
-            .memory(|mem| mem.data.get_temp::<u16>(builder_key_id))
-            .unwrap_or_else(|| kc.base_keycode() as u16);
-
-        let mut result: Option<u16> = None;
-
-        match builder_type {
-            0 => {
-                // LT(layer, key)
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Layer:").size(11.0));
-                    let mut l = layer as f32;
-                    if ui.add(egui::Slider::new(&mut l, 0.0..=15.0).integer()).changed() {
-                        layer = l as u8;
-                    }
-                });
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Tap Key:").size(11.0));
-                    let name = if base_key == 0 {
-                        "---".to_string()
-                    } else {
-                        Keycode(base_key).name()
-                    };
-                    ui.label(egui::RichText::new(&name).monospace().size(11.0));
-                });
-                // Quick key selector
-                ui.horizontal_wrapped(|ui| {
-                    ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
-                    // Show common keys
-                    for &k in &[0x28u16, 0x2Cu16, 0x29u16, 0x2Au16, 0x2Bu16] {
-                        let n = Keycode(k).name();
-                        if ui.small_button(&n).clicked() {
-                            base_key = k;
-                        }
-                    }
-                    // Letters
-                    for k in 0x04u16..=0x1Du16 {
-                        let n = Keycode(k).name();
-                        if ui.small_button(&n).clicked() {
-                            base_key = k;
-                        }
-                    }
-                });
-                ui.add_space(4.0);
-                let preview = Keycode::layer_tap(layer, base_key as u8);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(format!("Result: {} (0x{:04X})", preview.name(), preview.raw()))
-                            .monospace()
-                            .size(11.0)
-                            .color(egui::Color32::from_rgb(140, 200, 140)),
-                    );
-                    if ui.button("Apply").clicked() {
-                        result = Some(preview.raw());
-                    }
-                });
-            }
-            1 => {
-                // MT(mod, key)
-                ui.label(egui::RichText::new("Hold Modifiers:").size(11.0));
-                render_mod_checkboxes(ui, &mut mods);
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Tap Key:").size(11.0));
-                    let name = if base_key == 0 {
-                        "---".to_string()
-                    } else {
-                        Keycode(base_key).name()
-                    };
-                    ui.label(egui::RichText::new(&name).monospace().size(11.0));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
-                    for k in 0x04u16..=0x1Du16 {
-                        let n = Keycode(k).name();
-                        if ui.small_button(&n).clicked() {
-                            base_key = k;
-                        }
-                    }
-                    for &k in &[0x28u16, 0x2Cu16, 0x29u16, 0x2Au16, 0x2Bu16] {
-                        let n = Keycode(k).name();
-                        if ui.small_button(&n).clicked() {
-                            base_key = k;
-                        }
-                    }
-                });
-                ui.add_space(4.0);
-                let preview = Keycode::mod_tap(mods, base_key as u8);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(format!("Result: {} (0x{:04X})", preview.name(), preview.raw()))
-                            .monospace()
-                            .size(11.0)
-                            .color(egui::Color32::from_rgb(140, 200, 140)),
-                    );
-                    if ui.button("Apply").clicked() {
-                        result = Some(preview.raw());
-                    }
-                });
-            }
-            2 => {
-                // Mod+Key
-                ui.label(egui::RichText::new("Modifiers:").size(11.0));
-                render_mod_checkboxes(ui, &mut mods);
-                ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Key:").size(11.0));
-                    let name = if base_key == 0 {
-                        "---".to_string()
-                    } else {
-                        Keycode(base_key).name()
-                    };
-                    ui.label(egui::RichText::new(&name).monospace().size(11.0));
-                });
-                ui.horizontal_wrapped(|ui| {
-                    ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
-                    for k in 0x04u16..=0x1Du16 {
-                        let n = Keycode(k).name();
-                        if ui.small_button(&n).clicked() {
-                            base_key = k;
-                        }
-                    }
-                });
-                ui.add_space(4.0);
-                let preview = Keycode::mod_key(mods, base_key as u8);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(format!("Result: {} (0x{:04X})", preview.name(), preview.raw()))
-                            .monospace()
-                            .size(11.0)
-                            .color(egui::Color32::from_rgb(140, 200, 140)),
-                    );
-                    if ui.button("Apply").clicked() {
-                        result = Some(preview.raw());
-                    }
-                });
-            }
-            3 => {
-                // OSM(mod)
-                ui.label(egui::RichText::new("One-Shot Modifier:").size(11.0));
-                ui.label(
-                    egui::RichText::new("Applies modifier to the next keypress only.")
-                        .size(10.0)
-                        .color(egui::Color32::from_rgb(110, 110, 125)),
-                );
-                render_mod_checkboxes(ui, &mut mods);
-                ui.add_space(4.0);
-                let preview = Keycode::one_shot_mod(mods);
-                ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new(format!("Result: {} (0x{:04X})", preview.name(), preview.raw()))
-                            .monospace()
-                            .size(11.0)
-                            .color(egui::Color32::from_rgb(140, 200, 140)),
-                    );
-                    if ui.button("Apply").clicked() {
-                        result = Some(preview.raw());
-                    }
-                });
-            }
-            _ => {}
         }
+    });
 
-        // Persist state
-        ui.memory_mut(|mem| {
-            mem.data.insert_temp(builder_layer_id, layer);
-            mem.data.insert_temp(builder_mods_id, mods);
-            mem.data.insert_temp(builder_key_id, base_key);
-        });
+    ui.add_space(4.0);
 
-        result
+    // State
+    let kc = Keycode(current_kc);
+    let mut layer: u8 = ui
+        .memory(|mem| mem.data.get_temp::<u8>(builder_layer_id))
+        .unwrap_or_else(|| kc.layer());
+    let mut mods: u8 = ui
+        .memory(|mem| mem.data.get_temp::<u8>(builder_mods_id))
+        .unwrap_or_else(|| kc.mod_mask());
+    let mut base_key: u16 = ui
+        .memory(|mem| mem.data.get_temp::<u16>(builder_key_id))
+        .unwrap_or_else(|| kc.base_keycode() as u16);
+
+    let mut result: Option<u16> = None;
+
+    match builder_type {
+        0 => {
+            // LT(layer, key)
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Layer:").size(11.0));
+                let mut l = layer as f32;
+                if ui
+                    .add(egui::Slider::new(&mut l, 0.0..=15.0).integer())
+                    .changed()
+                {
+                    layer = l as u8;
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Tap Key:").size(11.0));
+                let name = if base_key == 0 {
+                    "---".to_string()
+                } else {
+                    Keycode(base_key).name()
+                };
+                ui.label(egui::RichText::new(&name).monospace().size(11.0));
+            });
+            // Quick key selector
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
+                // Show common keys
+                for &k in &[0x28u16, 0x2Cu16, 0x29u16, 0x2Au16, 0x2Bu16] {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Letters
+                for k in 0x04u16..=0x1Du16 {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+            });
+            ui.add_space(4.0);
+            let preview = Keycode::layer_tap(layer, base_key as u8);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Result: {} (0x{:04X})",
+                        preview.name(),
+                        preview.raw()
+                    ))
+                    .monospace()
+                    .size(11.0)
+                    .color(egui::Color32::from_rgb(140, 200, 140)),
+                );
+                if ui.button("Apply").clicked() {
+                    result = Some(preview.raw());
+                }
+            });
+        }
+        1 => {
+            // MT(mod, key)
+            ui.label(egui::RichText::new("Hold Modifiers:").size(11.0));
+            render_mod_checkboxes(ui, &mut mods);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Tap Key:").size(11.0));
+                let name = if base_key == 0 {
+                    "---".to_string()
+                } else {
+                    Keycode(base_key).name()
+                };
+                ui.label(egui::RichText::new(&name).monospace().size(11.0));
+            });
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
+                for k in 0x04u16..=0x1Du16 {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                for &k in &[0x28u16, 0x2Cu16, 0x29u16, 0x2Au16, 0x2Bu16] {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+            });
+            ui.add_space(4.0);
+            let preview = Keycode::mod_tap(mods, base_key as u8);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Result: {} (0x{:04X})",
+                        preview.name(),
+                        preview.raw()
+                    ))
+                    .monospace()
+                    .size(11.0)
+                    .color(egui::Color32::from_rgb(140, 200, 140)),
+                );
+                if ui.button("Apply").clicked() {
+                    result = Some(preview.raw());
+                }
+            });
+        }
+        2 => {
+            // Mod+Key
+            ui.label(egui::RichText::new("Modifiers:").size(11.0));
+            render_mod_checkboxes(ui, &mut mods);
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Key:").size(11.0));
+                let name = if base_key == 0 {
+                    "---".to_string()
+                } else {
+                    Keycode(base_key).name()
+                };
+                ui.label(egui::RichText::new(&name).monospace().size(11.0));
+            });
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
+                for k in 0x04u16..=0x1Du16 {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+            });
+            ui.add_space(4.0);
+            let preview = Keycode::mod_key(mods, base_key as u8);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Result: {} (0x{:04X})",
+                        preview.name(),
+                        preview.raw()
+                    ))
+                    .monospace()
+                    .size(11.0)
+                    .color(egui::Color32::from_rgb(140, 200, 140)),
+                );
+                if ui.button("Apply").clicked() {
+                    result = Some(preview.raw());
+                }
+            });
+        }
+        3 => {
+            // OSM(mod)
+            ui.label(egui::RichText::new("One-Shot Modifier:").size(11.0));
+            ui.label(
+                egui::RichText::new("Applies modifier to the next keypress only.")
+                    .size(10.0)
+                    .color(egui::Color32::from_rgb(110, 110, 125)),
+            );
+            render_mod_checkboxes(ui, &mut mods);
+            ui.add_space(4.0);
+            let preview = Keycode::one_shot_mod(mods);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Result: {} (0x{:04X})",
+                        preview.name(),
+                        preview.raw()
+                    ))
+                    .monospace()
+                    .size(11.0)
+                    .color(egui::Color32::from_rgb(140, 200, 140)),
+                );
+                if ui.button("Apply").clicked() {
+                    result = Some(preview.raw());
+                }
+            });
+        }
+        _ => {}
+    }
+
+    // Persist state
+    ui.memory_mut(|mem| {
+        mem.data.insert_temp(builder_layer_id, layer);
+        mem.data.insert_temp(builder_mods_id, mods);
+        mem.data.insert_temp(builder_key_id, base_key);
+    });
+
+    result
 }
 
 /// Render modifier checkboxes for builder UIs.

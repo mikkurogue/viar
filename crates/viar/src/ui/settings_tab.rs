@@ -33,7 +33,7 @@ impl ViarApp {
                     .inner_margin(egui::Margin::same(16))
                     .corner_radius(egui::CornerRadius::same(6))
                     .fill(self.theme.bg_secondary())
-                    .stroke(egui::Stroke::new(1.0, self.theme.border()))
+                    .stroke(egui::Stroke::new(1.0_f32, self.theme.border()))
                     .show(ui, |ui| {
                         ui.label(
                             egui::RichText::new("Theme")
@@ -104,7 +104,7 @@ impl ViarApp {
                                         )
                                         .fill(bg)
                                         .stroke(egui::Stroke::new(
-                                            if is_active { 2.0 } else { 1.0 },
+                                            if is_active { 2.0_f32 } else { 1.0_f32 },
                                             border,
                                         ))
                                         .corner_radius(egui::CornerRadius::same(4))
@@ -161,7 +161,7 @@ impl ViarApp {
                                         )
                                         .fill(bg)
                                         .stroke(egui::Stroke::new(
-                                            if is_active { 2.0 } else { 1.0 },
+                                            if is_active { 2.0_f32 } else { 1.0_f32 },
                                             t.border(),
                                         ))
                                         .corner_radius(egui::CornerRadius::same(4))
@@ -247,7 +247,7 @@ impl ViarApp {
                     .inner_margin(egui::Margin::same(16))
                     .corner_radius(egui::CornerRadius::same(6))
                     .fill(self.theme.bg_secondary())
-                    .stroke(egui::Stroke::new(1.0, self.theme.border()))
+                    .stroke(egui::Stroke::new(1.0_f32, self.theme.border()))
                     .show(ui, |ui| {
                         ui.label(
                             egui::RichText::new("Configuration")

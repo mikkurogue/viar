@@ -161,23 +161,24 @@ impl Theme {
 
         visuals.override_text_color = Some(self.text_primary());
         visuals.selection.bg_fill = self.accent();
-        visuals.selection.stroke = egui::Stroke::new(1.0, self.accent());
+        visuals.selection.stroke = egui::Stroke::new(1.0_f32, self.accent());
 
         visuals.widgets.noninteractive.bg_fill = self.bg_secondary();
-        visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, self.text_secondary());
-        visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, self.border());
+        visuals.widgets.noninteractive.fg_stroke =
+            egui::Stroke::new(1.0_f32, self.text_secondary());
+        visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0_f32, self.border());
 
         visuals.widgets.inactive.bg_fill = self.bg_tertiary();
-        visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, self.text_secondary());
-        visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0, self.border());
+        visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0_f32, self.text_secondary());
+        visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1.0_f32, self.border());
 
         visuals.widgets.hovered.bg_fill = self.accent_subtle();
-        visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, self.text_primary());
-        visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0, self.accent_hover());
+        visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0_f32, self.text_primary());
+        visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.0_f32, self.accent_hover());
 
         visuals.widgets.active.bg_fill = self.accent();
-        visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, self.text_on_accent());
-        visuals.widgets.active.bg_stroke = egui::Stroke::new(1.0, self.accent());
+        visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0_f32, self.text_on_accent());
+        visuals.widgets.active.bg_stroke = egui::Stroke::new(1.0_f32, self.accent());
 
         ctx.set_visuals(visuals);
     }
