@@ -1,3 +1,4 @@
+pub mod about_tab;
 pub mod combos_tab;
 pub mod connected;
 pub mod key_overrides_tab;

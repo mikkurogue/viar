@@ -18,6 +18,7 @@ pub enum ConnectedTab {
     KeyOverrides,
     Pointing,
     Settings,
+    About,
 }
 
 /// Status message shown temporarily after an action.

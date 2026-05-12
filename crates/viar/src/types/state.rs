@@ -61,4 +61,14 @@ pub struct ViarApp {
     pub config: ViarConfig,
     /// Active theme
     pub theme: Theme,
+    /// Vial firmware protocol version (separate from VIA protocol version)
+    pub vial_protocol_version: Option<u32>,
+    /// Vial keyboard UID
+    pub vial_uid: Option<[u8; 8]>,
+    /// QMK firmware version (from GetKeyboardValue)
+    pub firmware_version: Option<u32>,
+    /// Keyboard uptime at connection time (milliseconds)
+    pub connect_uptime_ms: Option<u32>,
+    /// Detected QMK features based on protocol probing
+    pub detected_features: Vec<String>,
 }

@@ -12,4 +12,6 @@ pub struct LightingData {
     pub supported_effects: Vec<u16>,
     /// Whether lighting values have been modified since last save
     pub dirty: bool,
+    /// Maximum brightness reported by the firmware (0 = no limit / use 255)
+    pub max_brightness: u8,
 }

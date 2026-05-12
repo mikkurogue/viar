@@ -41,7 +41,7 @@ impl ViarApp {
             ui.add_space(16.0);
             ui.label(
                 egui::RichText::new("Pointing Device / Trackpad Settings")
-                    .size(18.0)
+                    .size(22.0)
                     .strong()
                     .color(egui::Color32::from_rgb(200, 200, 215)),
             );
@@ -51,7 +51,7 @@ impl ViarApp {
             ui.add_space(16.0);
             ui.label(
                 egui::RichText::new("Configure DPI, scroll, axis inversion, and auto-mouse for trackpads and trackballs.")
-                    .size(11.0)
+                    .size(15.0)
                     .color(egui::Color32::from_rgb(110, 110, 125)),
             );
         });
@@ -76,7 +76,7 @@ impl ViarApp {
                             .unwrap_or(400);
                         ui.label(
                             egui::RichText::new("DPI / CPI")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(180, 180, 195)),
                         );
                         let mut val = current as f32;
@@ -108,7 +108,7 @@ impl ViarApp {
                             .unwrap_or(200);
                         ui.label(
                             egui::RichText::new("Sniping DPI")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(180, 180, 195)),
                         );
                         let mut val = current as f32;
@@ -140,7 +140,7 @@ impl ViarApp {
                             .unwrap_or(8);
                         ui.label(
                             egui::RichText::new("Scroll Divisor")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(180, 180, 195)),
                         );
                         let mut val = current as f32;
@@ -168,7 +168,7 @@ impl ViarApp {
                             .unwrap_or(8);
                         ui.label(
                             egui::RichText::new("Drag Scroll Divisor")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(180, 180, 195)),
                         );
                         let mut val = current as f32;
@@ -205,7 +205,7 @@ impl ViarApp {
                                 .unwrap_or(0);
                             ui.label(
                                 egui::RichText::new(label)
-                                    .size(13.0)
+                                    .size(17.0)
                                     .color(egui::Color32::from_rgb(180, 180, 195)),
                             );
                             let mut checked = current != 0;
@@ -229,7 +229,7 @@ impl ViarApp {
                             .unwrap_or(0);
                         ui.label(
                             egui::RichText::new("Auto Mouse Layer")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(180, 180, 195)),
                         );
                         let mut val = current as f32;
@@ -257,7 +257,7 @@ impl ViarApp {
                             .unwrap_or(500);
                         ui.label(
                             egui::RichText::new("Auto Mouse Timeout")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(180, 180, 195)),
                         );
                         let mut val = current as f32;
@@ -288,7 +288,7 @@ impl ViarApp {
                     .add(
                         egui::Button::new(
                             egui::RichText::new("Reset to Defaults")
-                                .size(12.0)
+                                .size(16.0)
                                 .color(egui::Color32::from_rgb(200, 120, 120)),
                         )
                         .fill(egui::Color32::from_rgb(50, 35, 35))

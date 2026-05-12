@@ -50,6 +50,11 @@ impl ViarApp {
             detect_rx: None,
             config,
             theme,
+            vial_protocol_version: None,
+            vial_uid: None,
+            firmware_version: None,
+            connect_uptime_ms: None,
+            detected_features: Vec::new(),
         }
     }
 
@@ -113,6 +118,11 @@ impl ViarApp {
     pub fn refresh(&mut self) {
         self.connected_device = None;
         self.protocol_version = None;
+        self.vial_protocol_version = None;
+        self.vial_uid = None;
+        self.firmware_version = None;
+        self.connect_uptime_ms = None;
+        self.detected_features.clear();
         self.keymap_data = None;
         self.keyboards.clear();
 
@@ -160,6 +170,29 @@ impl ViarApp {
         };
         let info = &dev.info;
         let proto = ViaProtocol::new(dev);
+
+        // Capture Vial protocol info
+        if let Ok((vial_ver, uid)) = proto.vial_get_keyboard_id() {
+            self.vial_protocol_version = Some(vial_ver);
+            self.vial_uid = Some(uid);
+        }
+
+        // Query firmware version
+        if let Ok(fw_ver) = proto.get_firmware_version() {
+            self.firmware_version = Some(fw_ver);
+        }
+
+        // Query uptime
+        if let Ok(uptime) = proto.get_uptime() {
+            self.connect_uptime_ms = Some(uptime);
+        }
+
+        // Detect enabled QMK features by probing
+        let mut features = Vec::new();
+        if proto.has_qmk_settings() {
+            features.push("QMK Settings".into());
+        }
+        self.detected_features = features;
 
         // Try Vial definition first, then VIA JSON from config dir, then generic
         let mut layout_warning: Option<String> = None;
@@ -265,6 +298,15 @@ impl ViarApp {
                         if !supported_effects.is_empty() {
                             info!(count = supported_effects.len(), effects = ?supported_effects, "supported VialRGB effects");
                         }
+                        let max_brightness =
+                            if matches!(lighting_proto, LightingProtocol::VialRgb) {
+                                proto
+                                    .vialrgb_get_info()
+                                    .map(|info| info.max_brightness)
+                                    .unwrap_or(255)
+                            } else {
+                                255
+                            };
                         self.lighting_data = Some(LightingData {
                             protocol: lighting_proto,
                             brightness: vals.brightness,
@@ -274,6 +316,7 @@ impl ViarApp {
                             saturation: vals.saturation,
                             supported_effects,
                             dirty: false,
+                            max_brightness: if max_brightness == 0 { 255 } else { max_brightness },
                         });
                     }
                     Err(e) => {
@@ -313,12 +356,15 @@ impl ViarApp {
                             warn!(error = %e, "failed to load key overrides");
                             Vec::new()
                         });
-                    self.dynamic_data = Some(crate::types::DynamicEntryData::new(
+                    let mut dynamic = crate::types::DynamicEntryData::new(
                         counts,
                         tap_dances,
                         combos,
                         key_overrides,
-                    ));
+                    );
+                    // Load saved aliases from config
+                    dynamic.aliases = self.config.aliases.clone();
+                    self.dynamic_data = Some(dynamic);
                 }
                 Err(e) => {
                     debug!(error = %e, "dynamic entries not supported by this keyboard");
@@ -364,6 +410,39 @@ impl ViarApp {
             }
         }
 
+        // Build detected features list based on what we successfully loaded
+        if self.lighting_data.is_some() {
+            let protocol_name = match &self.lighting_data.as_ref().unwrap().protocol {
+                LightingProtocol::VialRgb => "RGB Matrix (VialRGB)",
+                LightingProtocol::VialLegacy => "RGB Matrix (Vial Legacy)",
+                LightingProtocol::Via { channel } => {
+                    use via_protocol::LightingChannel;
+                    match channel {
+                        LightingChannel::QmkBacklight => "QMK Backlight",
+                        LightingChannel::QmkRgblight => "QMK Rgblight",
+                        LightingChannel::QmkRgbMatrix => "QMK RGB Matrix",
+                        LightingChannel::QmkAudio => "QMK Audio",
+                        LightingChannel::QmkLedMatrix => "QMK LED Matrix",
+                    }
+                }
+            };
+            self.detected_features.push(protocol_name.into());
+        }
+        if let Some(dynamic) = &self.dynamic_data {
+            if !dynamic.tap_dances.is_empty() {
+                self.detected_features.push("Tap Dance".into());
+            }
+            if !dynamic.combos.is_empty() {
+                self.detected_features.push("Combos".into());
+            }
+            if !dynamic.key_overrides.is_empty() {
+                self.detected_features.push("Key Overrides".into());
+            }
+        }
+        if self.pointing_data.is_some() {
+            self.detected_features.push("Pointing Device".into());
+        }
+
         if let Some(warning) = layout_warning {
             self.set_status(StatusMessage::error(warning));
         }
@@ -377,6 +456,11 @@ impl ViarApp {
         info!("disconnecting from keyboard");
         self.connected_device = None;
         self.protocol_version = None;
+        self.vial_protocol_version = None;
+        self.vial_uid = None;
+        self.firmware_version = None;
+        self.connect_uptime_ms = None;
+        self.detected_features.clear();
         self.keymap_data = None;
         self.lighting_data = None;
         self.dynamic_data = None;
@@ -389,6 +473,11 @@ impl ViarApp {
         warn!("device disconnected unexpectedly");
         self.connected_device = None;
         self.protocol_version = None;
+        self.vial_protocol_version = None;
+        self.vial_uid = None;
+        self.firmware_version = None;
+        self.connect_uptime_ms = None;
+        self.detected_features.clear();
         self.lighting_data = None;
         self.dynamic_data = None;
         self.pointing_data = None;

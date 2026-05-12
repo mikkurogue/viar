@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use eframe::egui;
 use via_protocol::{
     Keycode,
@@ -6,6 +8,23 @@ use via_protocol::{
 };
 
 use crate::theme::Theme;
+
+/// Resolve a keycode name using aliases if available.
+pub fn aliased_name(raw_kc: u16, aliases: Option<&HashMap<String, String>>) -> String {
+    if let Some(aliases) = aliases {
+        // Tap dance range: 0x5700..=0x57FF
+        if (0x5700..=0x57FF).contains(&raw_kc) {
+            let idx = (raw_kc & 0xFF) as usize;
+            let key = format!("td:{idx}");
+            if let Some(alias) = aliases.get(&key) {
+                if !alias.is_empty() {
+                    return alias.clone();
+                }
+            }
+        }
+    }
+    Keycode(raw_kc).name()
+}
 
 /// Render a tab-style selectable label with proper text contrast.
 /// When selected, uses `text_on_accent` so text is legible against the accent background.
@@ -117,7 +136,7 @@ pub fn keycode_chip(ui: &mut egui::Ui, label: &str, value: u16, is_active: bool)
     ui.horizontal(|ui| {
         ui.label(
             egui::RichText::new(format!("{label}:"))
-                .size(12.0)
+                .size(16.0)
                 .color(if is_active {
                     egui::Color32::from_rgb(100, 180, 255)
                 } else {
@@ -140,7 +159,7 @@ pub fn keycode_chip(ui: &mut egui::Ui, label: &str, value: u16, is_active: bool)
         };
 
         let btn = ui.add(
-            egui::Button::new(egui::RichText::new(&name).monospace().size(12.0).color(
+            egui::Button::new(egui::RichText::new(&name).monospace().size(16.0).color(
                 if value == 0 {
                     egui::Color32::from_rgb(90, 90, 100)
                 } else {
@@ -184,6 +203,7 @@ pub fn shared_keycode_picker(
     groups: &[KeycodeGroup],
     active_field_label: &str,
     theme: &Theme,
+    aliases: Option<&HashMap<String, String>>,
 ) -> PickerResult {
     let mut result = PickerResult {
         selected: None,
@@ -194,7 +214,7 @@ pub fn shared_keycode_picker(
     ui.horizontal(|ui| {
         ui.label(
             egui::RichText::new(format!("Setting: {active_field_label}"))
-                .size(11.0)
+                .size(15.0)
                 .strong()
                 .color(egui::Color32::from_rgb(100, 180, 255)),
         );
@@ -205,7 +225,7 @@ pub fn shared_keycode_picker(
                     .add(
                         egui::Button::new(
                             egui::RichText::new("Clear")
-                                .size(10.0)
+                                .size(14.0)
                                 .color(egui::Color32::from_rgb(180, 100, 100)),
                         )
                         .fill(egui::Color32::from_rgb(50, 35, 35))
@@ -235,7 +255,7 @@ pub fn shared_keycode_picker(
             }
             ui.label(
                 egui::RichText::new("Hex:")
-                    .size(10.0)
+                    .size(14.0)
                     .color(egui::Color32::from_rgb(100, 100, 115)),
             );
         });
@@ -248,7 +268,7 @@ pub fn shared_keycode_picker(
         ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
         for (i, group) in groups.iter().enumerate() {
             let sel = *selected_group == i;
-            let label_text = egui::RichText::new(group.name).size(9.5);
+            let label_text = egui::RichText::new(group.name).size(13.5);
             if themed_tab(ui, sel, label_text, theme).clicked() {
                 *selected_group = i;
             }
@@ -263,7 +283,7 @@ pub fn shared_keycode_picker(
                 ui.spacing_mut().item_spacing = egui::vec2(3.0, 3.0);
                 if let Some(group) = groups.get(*selected_group) {
                     for kc in &group.codes {
-                        let kc_name = kc.name();
+                        let kc_name = aliased_name(kc.0, aliases);
                         let is_current = kc.0 == current_value;
                         let size = egui::vec2(38.0, 22.0);
                         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());

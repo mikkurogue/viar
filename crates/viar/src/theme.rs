@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+};
 
 use eframe::egui;
 use serde::{
@@ -197,6 +200,7 @@ pub fn builtin_themes() -> Vec<Theme> {
         rosepine_dawn(),
         gruvbox_dark(),
         gruvbox_light(),
+        kanagawa_dragon(),
     ]
 }
 
@@ -552,12 +556,48 @@ fn gruvbox_light() -> Theme {
     }
 }
 
+fn kanagawa_dragon() -> Theme {
+    Theme {
+        name:   "Kanagawa Dragon".into(),
+        colors: ThemeColors {
+            bg_primary:     "#181616".into(),
+            bg_secondary:   "#1D1C19".into(),
+            bg_tertiary:    "#282727".into(),
+            bg_elevated:    "#12120F".into(),
+            text_primary:   "#C5C9C5".into(),
+            text_secondary: "#A6A69C".into(),
+            text_muted:     "#625E5A".into(),
+            text_on_accent: "#181616".into(),
+            accent:         "#8BA4B0".into(),
+            accent_hover:   "#A0B8C4".into(),
+            accent_subtle:  "#1F2428".into(),
+            border:         "#282727".into(),
+            border_active:  "#8BA4B0".into(),
+            success:        "#87A987".into(),
+            error:          "#C4746E".into(),
+            warning:        "#C4B28A".into(),
+            key_basic:      "#1D1C19".into(),
+            key_mod:        "#282727".into(),
+            key_layer:      "#1D2522".into(),
+            key_mod_tap:    "#282025".into(),
+            key_tap_dance:  "#252028".into(),
+            key_empty:      "#181616".into(),
+            key_selected:   "#8BA4B0".into(),
+            key_hover:      "#282727".into(),
+        },
+    }
+}
+
 /// Persistent configuration saved to ~/.config/viar/config.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ViarConfig {
     /// Name of the active theme (built-in or custom)
     #[serde(default = "default_theme_name")]
     pub theme: String,
+    /// User-defined aliases for dynamic entries (tap dances, combos, key overrides).
+    /// Keys are like "td:0", "combo:3", "ko:1".
+    #[serde(default)]
+    pub aliases: HashMap<String, String>,
 }
 
 fn default_theme_name() -> String {
@@ -568,6 +608,7 @@ impl Default for ViarConfig {
     fn default() -> Self {
         Self {
             theme: default_theme_name(),
+            aliases: HashMap::new(),
         }
     }
 }

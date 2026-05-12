@@ -221,7 +221,7 @@ fn paint_sat_bar(ui: &mut egui::Ui, sat: &mut u8, hue: u8, brightness: u8, width
     changed
 }
 
-/// Paint a brightness bar — dark to light.
+/// Paint a brightness bar — dark to light, capped at max_val.
 fn paint_brightness_bar(
     ui: &mut egui::Ui,
     brightness: &mut u8,
@@ -367,13 +367,13 @@ impl ViarApp {
                         ui.horizontal(|ui| {
                             ui.label(
                                 egui::RichText::new(format!("{} {}", cat.icon(), cat.name()))
-                                    .size(13.0)
+                                    .size(17.0)
                                     .strong()
                                     .color(egui::Color32::from_rgb(170, 170, 190)),
                             );
                             ui.label(
                                 egui::RichText::new(cat.description())
-                                    .size(11.0)
+                                    .size(15.0)
                                     .color(egui::Color32::from_rgb(110, 110, 125)),
                             );
                         });
@@ -393,7 +393,7 @@ impl ViarApp {
                                         hsv_to_rgb(lighting.hue, lighting.saturation, 60);
                                     egui::Button::new(
                                         egui::RichText::new(name)
-                                            .size(12.0)
+                                            .size(16.0)
                                             .strong()
                                             .color(egui::Color32::WHITE),
                                     )
@@ -402,7 +402,7 @@ impl ViarApp {
                                 } else {
                                     egui::Button::new(
                                         egui::RichText::new(name)
-                                            .size(12.0)
+                                            .size(16.0)
                                             .color(egui::Color32::from_rgb(180, 180, 195)),
                                     )
                                     .fill(egui::Color32::from_rgb(38, 38, 45))
@@ -422,7 +422,7 @@ impl ViarApp {
                     ui.horizontal(|ui| {
                         ui.label(
                             egui::RichText::new("Effect")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(160, 160, 175)),
                         );
                         ui.add_space(8.0);
@@ -437,6 +437,21 @@ impl ViarApp {
                     });
                 }
 
+                // Effect-specific hints
+                if lighting.effect_id == 3 {
+                    ui.add_space(4.0);
+                    ui.label(
+                        egui::RichText::new(
+                            "Alphas Mods colors alpha and modifier keys differently. \
+                             This requires the firmware to have key flags configured — \
+                             if all keys show the same color, the firmware doesn't distinguish them."
+                        )
+                        .size(15.0)
+                        .italics()
+                        .color(egui::Color32::from_rgb(140, 130, 100)),
+                    );
+                }
+
                 ui.add_space(16.0);
                 ui.separator();
                 ui.add_space(12.0);
@@ -446,12 +461,20 @@ impl ViarApp {
                 let show_speed = effect_uses_speed(lighting.effect_id);
 
                 // Brightness
+                let max_bright = lighting.max_brightness;
                 ui.horizontal(|ui| {
                     ui.label(
                         egui::RichText::new("Brightness")
-                            .size(13.0)
+                            .size(17.0)
                             .color(egui::Color32::from_rgb(160, 160, 175)),
                     );
+                    if max_bright < 255 {
+                        ui.label(
+                            egui::RichText::new(format!("(max {})", max_bright))
+                                .size(14.0)
+                                .color(egui::Color32::from_rgb(100, 100, 115)),
+                        );
+                    }
                 });
                 ui.add_space(2.0);
                 if paint_brightness_bar(
@@ -461,17 +484,21 @@ impl ViarApp {
                     lighting.saturation,
                     bar_width,
                 ) {
+                    // Clamp to firmware max
+                    lighting.brightness = lighting.brightness.min(max_bright);
                     lighting.dirty = true;
                 }
+                // Also clamp on every frame in case it was loaded above max
+                lighting.brightness = lighting.brightness.min(max_bright);
                 // Percentage label
                 ui.horizontal(|ui| {
                     ui.add_space(bar_width - 40.0);
                     ui.label(
                         egui::RichText::new(format!(
                             "{}%",
-                            (lighting.brightness as f32 / 255.0 * 100.0).round() as u8
+                            (lighting.brightness as f32 / max_bright as f32 * 100.0).round() as u8
                         ))
-                        .size(11.0)
+                        .size(15.0)
                         .color(egui::Color32::from_rgb(120, 120, 135)),
                     );
                 });
@@ -483,7 +510,7 @@ impl ViarApp {
                     ui.horizontal(|ui| {
                         ui.label(
                             egui::RichText::new("Hue")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(160, 160, 175)),
                         );
                     });
@@ -504,7 +531,7 @@ impl ViarApp {
                     ui.horizontal(|ui| {
                         ui.label(
                             egui::RichText::new("Saturation")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(160, 160, 175)),
                         );
                     });
@@ -527,7 +554,7 @@ impl ViarApp {
                     ui.horizontal(|ui| {
                         ui.label(
                             egui::RichText::new("Speed")
-                                .size(13.0)
+                                .size(17.0)
                                 .color(egui::Color32::from_rgb(160, 160, 175)),
                         );
                         ui.add_space(8.0);
@@ -561,7 +588,7 @@ impl ViarApp {
                     if ui
                         .add_enabled(
                             apply_enabled,
-                            egui::Button::new(egui::RichText::new("⟳ Apply").size(14.0))
+                            egui::Button::new(egui::RichText::new("⟳ Apply").size(18.0))
                                 .corner_radius(egui::CornerRadius::same(6))
                                 .min_size(egui::vec2(90.0, 32.0)),
                         )
@@ -576,7 +603,7 @@ impl ViarApp {
 
                     if ui
                         .add(
-                            egui::Button::new(egui::RichText::new("💾 Save").size(14.0))
+                            egui::Button::new(egui::RichText::new("💾 Save").size(18.0))
                                 .corner_radius(egui::CornerRadius::same(6))
                                 .min_size(egui::vec2(90.0, 32.0)),
                         )
@@ -592,7 +619,7 @@ impl ViarApp {
 
                     if ui
                         .add(
-                            egui::Button::new(egui::RichText::new("↺ Reload").size(14.0))
+                            egui::Button::new(egui::RichText::new("↺ Reload").size(18.0))
                                 .corner_radius(egui::CornerRadius::same(6))
                                 .min_size(egui::vec2(90.0, 32.0)),
                         )
@@ -609,7 +636,7 @@ impl ViarApp {
                     ui.add_space(8.0);
                     ui.label(
                         egui::RichText::new("● Unsaved changes")
-                            .size(12.0)
+                            .size(16.0)
                             .color(egui::Color32::from_rgb(220, 180, 60)),
                     );
                 }
@@ -633,7 +660,7 @@ impl ViarApp {
                 };
                 ui.label(
                     egui::RichText::new(format!("Protocol: {protocol_name}"))
-                        .size(11.0)
+                        .size(15.0)
                         .color(egui::Color32::from_rgb(90, 90, 105)),
                 );
             });
@@ -675,13 +702,57 @@ impl ViarApp {
             saturation: lighting.saturation,
         };
 
+        info!(
+            protocol = ?lp,
+            effect_id = vals.effect_id,
+            brightness = vals.brightness,
+            speed = vals.speed,
+            hue = vals.hue,
+            saturation = vals.saturation,
+            "applying lighting values"
+        );
+
         match proto.write_lighting_values(&lp, &vals) {
             Ok(()) => {
-                info!("lighting values applied to device");
-                if let Some(l) = &mut self.lighting_data {
-                    l.dirty = false;
+                // Read back to verify the keyboard accepted the values
+                match proto.read_lighting_values(&lp) {
+                    Ok(readback) => {
+                        info!(
+                            effect_id = readback.effect_id,
+                            brightness = readback.brightness,
+                            speed = readback.speed,
+                            hue = readback.hue,
+                            saturation = readback.saturation,
+                            "lighting readback after apply"
+                        );
+                        if readback.effect_id != vals.effect_id
+                            || readback.hue != vals.hue
+                            || readback.saturation != vals.saturation
+                            || readback.brightness != vals.brightness
+                        {
+                            warn!(
+                                "lighting readback mismatch! sent effect={} hue={} sat={} bright={}, got effect={} hue={} sat={} bright={}",
+                                vals.effect_id, vals.hue, vals.saturation, vals.brightness,
+                                readback.effect_id, readback.hue, readback.saturation, readback.brightness,
+                            );
+                            self.set_status(StatusMessage::error(
+                                "Lighting applied but readback mismatch — keyboard may not have accepted values"
+                            ));
+                        } else {
+                            if let Some(l) = &mut self.lighting_data {
+                                l.dirty = false;
+                            }
+                            self.set_status(StatusMessage::info("Lighting applied"));
+                        }
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "failed to read back lighting after apply");
+                        if let Some(l) = &mut self.lighting_data {
+                            l.dirty = false;
+                        }
+                        self.set_status(StatusMessage::info("Lighting applied (readback failed)"));
+                    }
                 }
-                self.set_status(StatusMessage::info("Lighting applied"));
             }
             Err(e) => {
                 let err_str = format!("{e}");

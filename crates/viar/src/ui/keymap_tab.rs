@@ -18,6 +18,7 @@ use crate::{
     },
     util::{
         CategoryStyle,
+        aliased_name,
         is_disconnect_error,
         themed_tab,
     },
@@ -25,6 +26,13 @@ use crate::{
 
 impl ViarApp {
     pub fn render_keymap_tab(&mut self, ui: &mut egui::Ui) {
+        // Clone aliases before mutable borrow of keymap_data
+        let aliases = self
+            .dynamic_data
+            .as_ref()
+            .map(|d| d.aliases.clone());
+        let aliases_ref = aliases.as_ref();
+
         let Some(data) = &mut self.keymap_data else {
             ui.label("No keymap data loaded.");
             return;
@@ -121,9 +129,10 @@ impl ViarApp {
                     let input_names: Vec<String> =
                         active_inputs.iter().map(|&kc| Keycode(kc).name()).collect();
                     let output_name = Keycode(combo.output).name();
+                    let combo_display = d.combo_name(*combo_idx);
                     let desc = format!(
-                        "Combo {}: {} -> {}",
-                        combo_idx,
+                        "{}: {} -> {}",
+                        combo_display,
                         input_names.join(" + "),
                         output_name
                     );
@@ -148,6 +157,7 @@ impl ViarApp {
                     continue;
                 }
                 let kc_raw = 0x5700u16 | i as u16;
+                let td_display = d.td_name(i);
                 let mut parts = Vec::new();
                 if td.on_tap != 0 {
                     parts.push(format!("Tap: {}", Keycode(td.on_tap).name()));
@@ -164,15 +174,15 @@ impl ViarApp {
                 if td.tapping_term > 0 {
                     parts.push(format!("{}ms", td.tapping_term));
                 }
-                td_summaries.insert(kc_raw, parts.join("  |  "));
+                td_summaries.insert(kc_raw, format!("{}: {}", td_display, parts.join("  |  ")));
 
-                // Keycap: show tap key on top, TD index on bottom
+                // Keycap: show tap key on top, TD name on bottom
                 let tap_label = if td.on_tap != 0 {
                     Keycode(td.on_tap).name()
                 } else {
-                    format!("TD{i}")
+                    td_display.clone()
                 };
-                td_keycap_labels.insert(kc_raw, (tap_label, format!("TD{i}")));
+                td_keycap_labels.insert(kc_raw, (tap_label, td_display));
             }
         }
 
@@ -223,7 +233,7 @@ impl ViarApp {
                 egui::StrokeKind::Outside,
             );
 
-            let label = keycode.name();
+            let label = aliased_name(raw_kc, aliases_ref);
 
             let text_color = if is_selected {
                 egui::Color32::WHITE
@@ -321,7 +331,7 @@ impl ViarApp {
                             label, raw_kc, key_pos.row, key_pos.col
                         ))
                         .monospace()
-                        .size(12.0),
+                        .size(16.0),
                     );
                     if let Some(combos) = combo_map.get(&raw_kc) {
                         ui.add_space(4.0);
@@ -334,7 +344,7 @@ impl ViarApp {
                                 ui.painter().circle_filled(r.center(), 4.0, combo.color);
                                 ui.label(
                                     egui::RichText::new(&combo.description)
-                                        .size(11.0)
+                                        .size(15.0)
                                         .color(egui::Color32::from_rgb(180, 200, 220)),
                                 );
                             });
@@ -344,7 +354,7 @@ impl ViarApp {
                         ui.add_space(4.0);
                         ui.label(
                             egui::RichText::new(format!("Tap Dance: {td_info}"))
-                                .size(11.0)
+                                .size(15.0)
                                 .color(egui::Color32::from_rgb(200, 180, 140)),
                         );
                     }
@@ -397,7 +407,7 @@ impl ViarApp {
                 .copied()
                 .unwrap_or(0);
             let keycode = Keycode(raw_kc);
-            let kc_name = keycode.name();
+            let kc_name = aliased_name(raw_kc, aliases_ref);
             let kc_category = format!("{:?}", keycode.category());
 
             let popover_w = 480.0_f32;
@@ -430,18 +440,18 @@ impl ViarApp {
                                 layer_idx, key_pos.row, key_pos.col
                             ))
                             .strong()
-                            .size(13.0),
+                            .size(17.0),
                         );
                         ui.separator();
                         ui.label(
                             egui::RichText::new(format!("{kc_name}  {:#06x}", raw_kc))
-                                .size(12.0)
+                                .size(16.0)
                                 .color(egui::Color32::from_rgb(160, 160, 175)),
                         );
                         ui.separator();
                         ui.label(
                             egui::RichText::new(&kc_category)
-                                .size(11.0)
+                                .size(15.0)
                                 .color(egui::Color32::from_rgb(120, 120, 135)),
                         );
                     });
@@ -452,7 +462,7 @@ impl ViarApp {
                     ui.horizontal(|ui| {
                         ui.label(
                             egui::RichText::new("Hex:")
-                                .size(11.0)
+                                .size(15.0)
                                 .color(egui::Color32::from_rgb(130, 130, 145)),
                         );
                         let hex_id = egui::Id::new("picker_hex_input");
@@ -482,14 +492,14 @@ impl ViarApp {
                             let preview = Keycode(preview_kc);
                             ui.label(
                                 egui::RichText::new(format!("→ {}", preview.name()))
-                                    .size(11.0)
+                                    .size(15.0)
                                     .color(egui::Color32::from_rgb(140, 170, 200)),
                             );
                         }
 
                         if ui
                             .add(
-                                egui::Button::new(egui::RichText::new("Set").size(11.0))
+                                egui::Button::new(egui::RichText::new("Set").size(15.0))
                                     .corner_radius(egui::CornerRadius::same(3)),
                             )
                             .clicked()
@@ -510,14 +520,14 @@ impl ViarApp {
                     ui.horizontal_wrapped(|ui| {
                         for (i, group) in self.picker_groups.iter().enumerate() {
                             let sel = self.picker_selected_group == i;
-                            let label = egui::RichText::new(group.name).size(11.5);
+                            let label = egui::RichText::new(group.name).size(15.5);
                             if themed_tab(ui, sel, label, &self.theme).clicked() {
                                 self.picker_selected_group = i;
                             }
                         }
                         // Builders tab (for LT, MT, Mod+Key, OSM)
                         let sel = self.picker_selected_group == builder_tab_idx;
-                        let label = egui::RichText::new("Builders").size(11.5);
+                        let label = egui::RichText::new("Builders").size(15.5);
                         if themed_tab(ui, sel, label, &self.theme).clicked() {
                             self.picker_selected_group = builder_tab_idx;
                         }
@@ -546,7 +556,7 @@ impl ViarApp {
                                     ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
                                     if let Some(group) = self.picker_groups.get(group_idx) {
                                         for kc in &group.codes {
-                                            let name = kc.name();
+                                            let name = aliased_name(kc.0, aliases_ref);
                                             let is_current = kc.0 == raw_kc;
                                             let size = egui::vec2(44.0, 28.0);
                                             let (rect, response) =
@@ -951,6 +961,7 @@ impl ViarApp {
             )));
         }
     }
+
 }
 
 /// Render the keycode builder UI (LT, MT, Mod+Key, OSM).
@@ -971,7 +982,7 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
         let types = ["LT(layer,key)", "MT(mod,key)", "Mod+Key", "OSM(mod)"];
         for (i, name) in types.iter().enumerate() {
             let sel = builder_type == i;
-            let text = egui::RichText::new(*name).size(10.5);
+            let text = egui::RichText::new(*name).size(14.5);
             if ui.selectable_label(sel, text).clicked() {
                 builder_type = i;
                 ui.memory_mut(|mem| mem.data.insert_temp(builder_type_id, builder_type));
@@ -999,7 +1010,7 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
         0 => {
             // LT(layer, key)
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Layer:").size(11.0));
+                ui.label(egui::RichText::new("Layer:").size(15.0));
                 let mut l = layer as f32;
                 if ui
                     .add(egui::Slider::new(&mut l, 0.0..=15.0).integer())
@@ -1009,13 +1020,13 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
                 }
             });
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Tap Key:").size(11.0));
+                ui.label(egui::RichText::new("Tap Key:").size(15.0));
                 let name = if base_key == 0 {
                     "---".to_string()
                 } else {
                     Keycode(base_key).name()
                 };
-                ui.label(egui::RichText::new(&name).monospace().size(11.0));
+                ui.label(egui::RichText::new(&name).monospace().size(15.0));
             });
             // Quick key selector
             ui.horizontal_wrapped(|ui| {
@@ -1045,7 +1056,7 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
                         preview.raw()
                     ))
                     .monospace()
-                    .size(11.0)
+                    .size(15.0)
                     .color(egui::Color32::from_rgb(140, 200, 140)),
                 );
                 if ui.button("Apply").clicked() {
@@ -1055,16 +1066,16 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
         }
         1 => {
             // MT(mod, key)
-            ui.label(egui::RichText::new("Hold Modifiers:").size(11.0));
+            ui.label(egui::RichText::new("Hold Modifiers:").size(15.0));
             render_mod_checkboxes(ui, &mut mods);
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Tap Key:").size(11.0));
+                ui.label(egui::RichText::new("Tap Key:").size(15.0));
                 let name = if base_key == 0 {
                     "---".to_string()
                 } else {
                     Keycode(base_key).name()
                 };
-                ui.label(egui::RichText::new(&name).monospace().size(11.0));
+                ui.label(egui::RichText::new(&name).monospace().size(15.0));
             });
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
@@ -1091,7 +1102,7 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
                         preview.raw()
                     ))
                     .monospace()
-                    .size(11.0)
+                    .size(15.0)
                     .color(egui::Color32::from_rgb(140, 200, 140)),
                 );
                 if ui.button("Apply").clicked() {
@@ -1101,16 +1112,16 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
         }
         2 => {
             // Mod+Key
-            ui.label(egui::RichText::new("Modifiers:").size(11.0));
+            ui.label(egui::RichText::new("Modifiers:").size(15.0));
             render_mod_checkboxes(ui, &mut mods);
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Key:").size(11.0));
+                ui.label(egui::RichText::new("Key:").size(15.0));
                 let name = if base_key == 0 {
                     "---".to_string()
                 } else {
                     Keycode(base_key).name()
                 };
-                ui.label(egui::RichText::new(&name).monospace().size(11.0));
+                ui.label(egui::RichText::new(&name).monospace().size(15.0));
             });
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
@@ -1131,7 +1142,7 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
                         preview.raw()
                     ))
                     .monospace()
-                    .size(11.0)
+                    .size(15.0)
                     .color(egui::Color32::from_rgb(140, 200, 140)),
                 );
                 if ui.button("Apply").clicked() {
@@ -1141,10 +1152,10 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
         }
         3 => {
             // OSM(mod)
-            ui.label(egui::RichText::new("One-Shot Modifier:").size(11.0));
+            ui.label(egui::RichText::new("One-Shot Modifier:").size(15.0));
             ui.label(
                 egui::RichText::new("Applies modifier to the next keypress only.")
-                    .size(10.0)
+                    .size(14.0)
                     .color(egui::Color32::from_rgb(110, 110, 125)),
             );
             render_mod_checkboxes(ui, &mut mods);
@@ -1158,7 +1169,7 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
                         preview.raw()
                     ))
                     .monospace()
-                    .size(11.0)
+                    .size(15.0)
                     .color(egui::Color32::from_rgb(140, 200, 140)),
                 );
                 if ui.button("Apply").clicked() {

@@ -37,14 +37,14 @@ impl ViarApp {
                     .show(ui, |ui| {
                         ui.label(
                             egui::RichText::new("Theme")
-                                .size(16.0)
+                                .size(20.0)
                                 .strong()
                                 .color(self.theme.text_primary()),
                         );
                         ui.add_space(4.0);
                         ui.label(
                             egui::RichText::new(format!("Current: {}", self.config.theme))
-                                .size(12.0)
+                                .size(16.0)
                                 .color(self.theme.text_secondary()),
                         );
                         ui.add_space(12.0);
@@ -74,7 +74,7 @@ impl ViarApp {
                             ui.add_space(4.0);
                             ui.label(
                                 egui::RichText::new(*family_name)
-                                    .size(12.0)
+                                    .size(16.0)
                                     .strong()
                                     .color(self.theme.text_secondary()),
                             );
@@ -100,7 +100,7 @@ impl ViarApp {
 
                                     let btn = ui.add(
                                         egui::Button::new(
-                                            egui::RichText::new(*name).size(11.0).color(text_col),
+                                            egui::RichText::new(*name).size(15.0).color(text_col),
                                         )
                                         .fill(bg)
                                         .stroke(egui::Stroke::new(
@@ -137,7 +137,7 @@ impl ViarApp {
                             ui.add_space(8.0);
                             ui.label(
                                 egui::RichText::new("Custom Themes")
-                                    .size(12.0)
+                                    .size(16.0)
                                     .strong()
                                     .color(self.theme.text_secondary()),
                             );
@@ -157,7 +157,7 @@ impl ViarApp {
 
                                     let btn = ui.add(
                                         egui::Button::new(
-                                            egui::RichText::new(&t.name).size(11.0).color(text_col),
+                                            egui::RichText::new(&t.name).size(15.0).color(text_col),
                                         )
                                         .fill(bg)
                                         .stroke(egui::Stroke::new(
@@ -188,7 +188,7 @@ impl ViarApp {
                         // Custom theme info
                         ui.label(
                             egui::RichText::new("Custom Themes")
-                                .size(13.0)
+                                .size(17.0)
                                 .strong()
                                 .color(self.theme.text_primary()),
                         );
@@ -203,7 +203,7 @@ impl ViarApp {
                                 "Place .json theme files in:\n{}",
                                 themes_path,
                             ))
-                            .size(11.0)
+                            .size(15.0)
                             .color(self.theme.text_secondary()),
                         );
                         ui.add_space(4.0);
@@ -212,7 +212,7 @@ impl ViarApp {
                                 "The filename (without .json) becomes the theme name.\n\
                                  Set it in config.toml: theme = \"my-theme-name\"",
                             )
-                            .size(10.0)
+                            .size(14.0)
                             .color(self.theme.text_muted()),
                         );
 
@@ -251,7 +251,7 @@ impl ViarApp {
                     .show(ui, |ui| {
                         ui.label(
                             egui::RichText::new("Configuration")
-                                .size(16.0)
+                                .size(20.0)
                                 .strong()
                                 .color(self.theme.text_primary()),
                         );
@@ -263,7 +263,7 @@ impl ViarApp {
 
                         ui.label(
                             egui::RichText::new(format!("Config file: {config_path}"))
-                                .size(11.0)
+                                .size(15.0)
                                 .monospace()
                                 .color(self.theme.text_secondary()),
                         );

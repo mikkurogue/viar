@@ -463,6 +463,11 @@ impl ViaCommand {
         Self::simple(ViaCommandId::GetProtocolVersion)
     }
 
+    /// Get a keyboard value by sub-ID (uptime, firmware version, etc.)
+    pub fn get_keyboard_value(value_id: KeyboardValueId) -> Self {
+        Self::with_data(ViaCommandId::GetKeyboardValue, &[value_id as u8])
+    }
+
     pub fn get_layer_count() -> Self {
         Self::simple(ViaCommandId::DynamicKeymapGetLayerCount)
     }

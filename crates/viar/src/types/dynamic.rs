@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use via_protocol::{
     ComboEntry,
     DynamicEntryCounts,
@@ -50,6 +52,11 @@ pub struct DynamicEntryData {
     pub active_field: Option<ActiveKeycodeField>,
     /// Which picker group tab is selected
     pub picker_group_idx: usize,
+    /// User-defined aliases for dynamic entries.
+    /// Keys are like "td:0", "combo:3", "ko:1". Values are custom names.
+    pub aliases: HashMap<String, String>,
+    /// Which alias is currently being edited inline (the alias key, e.g. "td:0")
+    pub editing_alias: Option<String>,
 }
 
 impl DynamicEntryData {
@@ -69,6 +76,32 @@ impl DynamicEntryData {
             editing_key_override: None,
             active_field: None,
             picker_group_idx: 0,
+            aliases: HashMap::new(),
+            editing_alias: None,
         }
+    }
+
+    /// Get the display name for a dynamic entry, using alias if set, otherwise the default.
+    pub fn display_name(&self, key: &str, default: &str) -> String {
+        self.aliases
+            .get(key)
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    /// Get the tap dance display name.
+    pub fn td_name(&self, idx: usize) -> String {
+        self.display_name(&format!("td:{idx}"), &format!("TD({idx})"))
+    }
+
+    /// Get the combo display name.
+    pub fn combo_name(&self, idx: usize) -> String {
+        self.display_name(&format!("combo:{idx}"), &format!("C{idx}"))
+    }
+
+    /// Get the key override display name.
+    pub fn ko_name(&self, idx: usize) -> String {
+        self.display_name(&format!("ko:{idx}"), &format!("KO{idx}"))
     }
 }

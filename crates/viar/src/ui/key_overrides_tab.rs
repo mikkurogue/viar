@@ -53,12 +53,12 @@ fn render_mod_checkboxes(ui: &mut egui::Ui, label: &str, hint: &str, mods: &mut 
     ui.horizontal(|ui| {
         ui.label(
             egui::RichText::new(format!("{label}:"))
-                .size(12.0)
+                .size(16.0)
                 .color(egui::Color32::from_rgb(140, 140, 155)),
         );
         ui.label(
             egui::RichText::new(hint)
-                .size(10.0)
+                .size(14.0)
                 .color(egui::Color32::from_rgb(100, 100, 115)),
         );
     });
@@ -103,6 +103,8 @@ impl ViarApp {
             .collect();
         let editing = dynamic.editing_key_override;
         let active_field = dynamic.active_field.clone();
+        let editing_alias = dynamic.editing_alias.clone();
+        let ko_names: Vec<String> = (0..count).map(|i| dynamic.ko_name(i)).collect();
 
         // List panel
         egui::Panel::left("ko_list_panel")
@@ -114,13 +116,13 @@ impl ViarApp {
                 ui.add_space(8.0);
                 ui.label(
                     egui::RichText::new("Key Overrides")
-                        .size(16.0)
+                        .size(20.0)
                         .strong()
                         .color(egui::Color32::from_rgb(200, 200, 215)),
                 );
                 ui.label(
                     egui::RichText::new(format!("{count} slots"))
-                        .size(11.0)
+                        .size(15.0)
                         .color(egui::Color32::from_rgb(120, 120, 135)),
                 );
                 ui.add_space(8.0);
@@ -131,6 +133,8 @@ impl ViarApp {
                         let is_selected = editing == Some(*idx);
                         let is_empty = entry.is_empty();
                         let is_enabled = entry.is_enabled();
+                        let alias_key = format!("ko:{idx}");
+                        let is_renaming = editing_alias.as_deref() == Some(&alias_key);
 
                         let bg = if is_selected {
                             egui::Color32::from_rgb(45, 55, 75)
@@ -146,45 +150,97 @@ impl ViarApp {
                         let resp = frame
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    ui.label(
-                                        egui::RichText::new(format!("KO{idx}"))
-                                            .monospace()
-                                            .size(12.0)
-                                            .strong()
-                                            .color(if is_selected {
-                                                egui::Color32::from_rgb(100, 180, 255)
-                                            } else {
-                                                egui::Color32::from_rgb(170, 170, 185)
-                                            }),
-                                    );
+                                    if is_renaming {
+                                        let text_id = egui::Id::new(("ko_alias_edit", *idx));
+                                        let first_frame_id = egui::Id::new(("ko_alias_first", *idx));
+                                        let mut name: String = ui
+                                            .memory(|mem| mem.data.get_temp(text_id))
+                                            .unwrap_or_else(|| ko_names[*idx].clone());
+                                        let resp = ui.add(
+                                            egui::TextEdit::singleline(&mut name)
+                                                .desired_width(100.0)
+                                                .char_limit(12)
+                                                .font(egui::TextStyle::Monospace),
+                                        );
+                                        ui.memory_mut(|mem| mem.data.insert_temp(text_id, name.clone()));
 
-                                    if is_empty {
-                                        ui.label(
-                                            egui::RichText::new("empty")
-                                                .italics()
-                                                .size(10.0)
-                                                .color(egui::Color32::from_rgb(90, 90, 100)),
-                                        );
+                                        let was_focused: bool = ui
+                                            .memory(|mem| mem.data.get_temp(first_frame_id))
+                                            .unwrap_or(false);
+                                        if !was_focused {
+                                            resp.request_focus();
+                                            ui.memory_mut(|mem| mem.data.insert_temp(first_frame_id, true));
+                                        }
+
+                                        if resp.lost_focus() {
+                                            if let Some(dynamic) = self.dynamic_data.as_mut() {
+                                                let trimmed = name.trim().to_string();
+                                                let default = format!("KO{idx}");
+                                                if trimmed.is_empty() || trimmed == default {
+                                                    dynamic.aliases.remove(&alias_key);
+                                                } else {
+                                                    dynamic.aliases.insert(alias_key.clone(), trimmed);
+                                                }
+                                                dynamic.editing_alias = None;
+                                                self.config.aliases = dynamic.aliases.clone();
+                                                crate::theme::save_config(&self.config);
+                                            }
+                                            ui.memory_mut(|mem| {
+                                                mem.data.remove::<String>(text_id);
+                                                mem.data.remove::<bool>(first_frame_id);
+                                            });
+                                        }
                                     } else {
-                                        let trig = Keycode(entry.trigger).name();
-                                        let repl = Keycode(entry.replacement).name();
-                                        let status = if !is_enabled { " [OFF]" } else { "" };
                                         ui.label(
-                                            egui::RichText::new(format!("{trig}->{repl}{status}"))
-                                                .size(9.0)
-                                                .color(egui::Color32::from_rgb(130, 130, 145)),
+                                            egui::RichText::new(&ko_names[*idx])
+                                                .monospace()
+                                                .size(16.0)
+                                                .strong()
+                                                .color(if is_selected {
+                                                    egui::Color32::from_rgb(100, 180, 255)
+                                                } else {
+                                                    egui::Color32::from_rgb(170, 170, 185)
+                                                }),
                                         );
+
+                                        if is_empty {
+                                            ui.label(
+                                                egui::RichText::new("empty")
+                                                    .italics()
+                                                    .size(14.0)
+                                                    .color(egui::Color32::from_rgb(90, 90, 100)),
+                                            );
+                                        } else {
+                                            let trig = Keycode(entry.trigger).name();
+                                            let repl = Keycode(entry.replacement).name();
+                                            let status = if !is_enabled { " [OFF]" } else { "" };
+                                            ui.label(
+                                                egui::RichText::new(format!("{trig}->{repl}{status}"))
+                                                    .size(13.0)
+                                                    .color(egui::Color32::from_rgb(130, 130, 145)),
+                                            );
+                                        }
                                     }
                                 });
                             })
                             .response;
 
-                        if resp.interact(egui::Sense::click()).clicked()
+                        let resp = resp.interact(egui::Sense::click());
+                        if resp.clicked() && !is_renaming
                             && let Some(dynamic) = self.dynamic_data.as_mut()
                         {
                             dynamic.editing_key_override = Some(*idx);
                             dynamic.active_field = None;
                         }
+                        if resp.double_clicked()
+                            && let Some(dynamic) = self.dynamic_data.as_mut()
+                        {
+                            dynamic.editing_alias = Some(alias_key.clone());
+                            let text_id = egui::Id::new(("ko_alias_edit", *idx));
+                            let current = ko_names[*idx].clone();
+                            ui.memory_mut(|mem| mem.data.insert_temp(text_id, current));
+                        }
+                        resp.on_hover_text("Double-click to rename");
                     }
                 });
             });
@@ -196,7 +252,7 @@ impl ViarApp {
                     ui.add_space(ui.available_height() / 3.0);
                     ui.label(
                         egui::RichText::new("Select a key override from the list")
-                            .size(14.0)
+                            .size(18.0)
                             .color(egui::Color32::from_rgb(120, 120, 135)),
                     );
                 });
@@ -209,17 +265,27 @@ impl ViarApp {
 
             ui.add_space(8.0);
             ui.horizontal(|ui| {
+                let display = ko_names[editing_idx].clone();
                 ui.label(
-                    egui::RichText::new(format!("Key Override {editing_idx}"))
+                    egui::RichText::new(&display)
                         .monospace()
-                        .size(18.0)
+                        .size(22.0)
                         .strong()
                         .color(egui::Color32::from_rgb(200, 200, 215)),
                 );
+                let default_name = format!("KO{editing_idx}");
+                if display != default_name {
+                    ui.label(
+                        egui::RichText::new(format!("Key Override {editing_idx}"))
+                            .monospace()
+                            .size(15.0)
+                            .color(egui::Color32::from_rgb(120, 120, 135)),
+                    );
+                }
             });
             ui.label(
                 egui::RichText::new("Override what a key does when specific modifiers are held.")
-                    .size(11.0)
+                    .size(15.0)
                     .color(egui::Color32::from_rgb(110, 110, 125)),
             );
             ui.add_space(8.0);
@@ -313,7 +379,7 @@ impl ViarApp {
                         ui.horizontal(|ui| {
                             ui.label(
                                 egui::RichText::new("Active Layers:")
-                                    .size(12.0)
+                                    .size(16.0)
                                     .color(egui::Color32::from_rgb(140, 140, 155)),
                             );
                         });
@@ -370,6 +436,7 @@ impl ViarApp {
                             &self.picker_groups,
                             field_label,
                             &self.theme,
+                            self.dynamic_data.as_ref().map(|d| &d.aliases),
                         );
 
                         if let Some(dynamic) = self.dynamic_data.as_mut() {
@@ -402,11 +469,16 @@ impl ViarApp {
         let Some(dev) = &self.connected_device else {
             return;
         };
+        let name = self
+            .dynamic_data
+            .as_ref()
+            .map(|d| d.ko_name(idx))
+            .unwrap_or_else(|| format!("KO{idx}"));
         let proto = ViaProtocol::new(dev);
         match proto.set_key_override(idx as u8, entry) {
             Ok(()) => {
                 info!(idx, "key override saved to device");
-                self.set_status(StatusMessage::info(format!("KO {idx} saved")));
+                self.set_status(StatusMessage::info(format!("{name} saved")));
             }
             Err(e) => {
                 let msg = format!("{e}");
@@ -415,7 +487,7 @@ impl ViarApp {
                     self.handle_disconnect();
                 } else {
                     self.set_status(StatusMessage::error(format!(
-                        "Failed to save KO {idx}: {e}"
+                        "Failed to save {name}: {e}"
                     )));
                 }
             }
