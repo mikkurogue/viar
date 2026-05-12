@@ -1,0 +1,15 @@
+[package]
+name = "argos-rs"
+version = "0.1.0"
+edition = "2024"
+description = "Rust implementation of the Bastard Keyboards Argos protocol for keyboard configuration over USB HID"
+license = "MIT"
+repository = "https://github.com/mikkurogue/viar"
+
+[dependencies]
+via-protocol = { path = "../via-protocol" }
+thiserror = "2.0.18"
+tracing = "0.1.44"
+
+[lints]
+workspace = true

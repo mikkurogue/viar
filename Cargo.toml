@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/via-protocol", "crates/viar"]
+members = ["crates/argos-rs", "crates/via-protocol", "crates/viar"]
 resolver = "3"
 
 [workspace.lints.clippy]
