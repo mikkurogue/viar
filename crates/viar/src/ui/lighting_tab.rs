@@ -732,8 +732,14 @@ impl ViarApp {
                         {
                             warn!(
                                 "lighting readback mismatch! sent effect={} hue={} sat={} bright={}, got effect={} hue={} sat={} bright={}",
-                                vals.effect_id, vals.hue, vals.saturation, vals.brightness,
-                                readback.effect_id, readback.hue, readback.saturation, readback.brightness,
+                                vals.effect_id,
+                                vals.hue,
+                                vals.saturation,
+                                vals.brightness,
+                                readback.effect_id,
+                                readback.hue,
+                                readback.saturation,
+                                readback.brightness,
                             );
                             self.set_status(StatusMessage::error(
                                 "Lighting applied but readback mismatch — keyboard may not have accepted values"

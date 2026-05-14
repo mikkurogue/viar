@@ -233,7 +233,9 @@ impl ViarApp {
                              To fix: place a VIA JSON definition at {}",
                             via_definition_path(info.vendor_id, info.product_id)
                                 .map(|p| p.display().to_string())
-                                .unwrap_or_else(|| "~/.config/viar/definitions/<vid>_<pid>.json".into())
+                                .unwrap_or_else(
+                                    || "~/.config/viar/definitions/<vid>_<pid>.json".into()
+                                )
                         ));
                         generic_layout(4, 12)
                     }
@@ -298,15 +300,15 @@ impl ViarApp {
                         if !supported_effects.is_empty() {
                             info!(count = supported_effects.len(), effects = ?supported_effects, "supported VialRGB effects");
                         }
-                        let max_brightness =
-                            if matches!(lighting_proto, LightingProtocol::VialRgb) {
-                                proto
-                                    .vialrgb_get_info()
-                                    .map(|info| info.max_brightness)
-                                    .unwrap_or(255)
-                            } else {
-                                255
-                            };
+                        let max_brightness = if matches!(lighting_proto, LightingProtocol::VialRgb)
+                        {
+                            proto
+                                .vialrgb_get_info()
+                                .map(|info| info.max_brightness)
+                                .unwrap_or(255)
+                        } else {
+                            255
+                        };
                         self.lighting_data = Some(LightingData {
                             protocol: lighting_proto,
                             brightness: vals.brightness,
@@ -316,7 +318,11 @@ impl ViarApp {
                             saturation: vals.saturation,
                             supported_effects,
                             dirty: false,
-                            max_brightness: if max_brightness == 0 { 255 } else { max_brightness },
+                            max_brightness: if max_brightness == 0 {
+                                255
+                            } else {
+                                max_brightness
+                            },
                         });
                     }
                     Err(e) => {

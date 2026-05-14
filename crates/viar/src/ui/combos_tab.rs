@@ -96,7 +96,8 @@ impl ViarApp {
                                 ui.horizontal(|ui| {
                                     if is_renaming {
                                         let text_id = egui::Id::new(("combo_alias_edit", *idx));
-                                        let first_frame_id = egui::Id::new(("combo_alias_first", *idx));
+                                        let first_frame_id =
+                                            egui::Id::new(("combo_alias_first", *idx));
                                         let mut name: String = ui
                                             .memory(|mem| mem.data.get_temp(text_id))
                                             .unwrap_or_else(|| combo_names[*idx].clone());
@@ -106,14 +107,18 @@ impl ViarApp {
                                                 .char_limit(12)
                                                 .font(egui::TextStyle::Monospace),
                                         );
-                                        ui.memory_mut(|mem| mem.data.insert_temp(text_id, name.clone()));
+                                        ui.memory_mut(|mem| {
+                                            mem.data.insert_temp(text_id, name.clone())
+                                        });
 
                                         let was_focused: bool = ui
                                             .memory(|mem| mem.data.get_temp(first_frame_id))
                                             .unwrap_or(false);
                                         if !was_focused {
                                             resp.request_focus();
-                                            ui.memory_mut(|mem| mem.data.insert_temp(first_frame_id, true));
+                                            ui.memory_mut(|mem| {
+                                                mem.data.insert_temp(first_frame_id, true)
+                                            });
                                         }
 
                                         if resp.lost_focus() {
@@ -123,7 +128,9 @@ impl ViarApp {
                                                 if trimmed.is_empty() || trimmed == default {
                                                     dynamic.aliases.remove(&alias_key);
                                                 } else {
-                                                    dynamic.aliases.insert(alias_key.clone(), trimmed);
+                                                    dynamic
+                                                        .aliases
+                                                        .insert(alias_key.clone(), trimmed);
                                                 }
                                                 dynamic.editing_alias = None;
                                                 self.config.aliases = dynamic.aliases.clone();
@@ -178,7 +185,8 @@ impl ViarApp {
                             .response;
 
                         let resp = resp.interact(egui::Sense::click());
-                        if resp.clicked() && !is_renaming
+                        if resp.clicked()
+                            && !is_renaming
                             && let Some(dynamic) = self.dynamic_data.as_mut()
                         {
                             dynamic.editing_combo = Some(*idx);
@@ -348,9 +356,7 @@ impl ViarApp {
                 if is_disconnect_error(&msg) {
                     self.handle_disconnect();
                 } else {
-                    self.set_status(StatusMessage::error(format!(
-                        "Failed to save {name}: {e}"
-                    )));
+                    self.set_status(StatusMessage::error(format!("Failed to save {name}: {e}")));
                 }
             }
         }

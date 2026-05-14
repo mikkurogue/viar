@@ -27,10 +27,7 @@ use crate::{
 impl ViarApp {
     pub fn render_keymap_tab(&mut self, ui: &mut egui::Ui) {
         // Clone aliases before mutable borrow of keymap_data
-        let aliases = self
-            .dynamic_data
-            .as_ref()
-            .map(|d| d.aliases.clone());
+        let aliases = self.dynamic_data.as_ref().map(|d| d.aliases.clone());
         let aliases_ref = aliases.as_ref();
 
         let Some(data) = &mut self.keymap_data else {
@@ -961,7 +958,6 @@ impl ViarApp {
             )));
         }
     }
-
 }
 
 /// Render the keycode builder UI (LT, MT, Mod+Key, OSM).

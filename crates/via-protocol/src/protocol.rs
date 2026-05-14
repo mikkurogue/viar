@@ -43,9 +43,9 @@ impl<'a> ViaProtocol<'a> {
 
     /// Get the keyboard uptime in milliseconds.
     pub fn get_uptime(&self) -> ViaResult<u32> {
-        let resp = self
-            .device
-            .send_command(&ViaCommand::get_keyboard_value(crate::command::KeyboardValueId::Uptime))?;
+        let resp = self.device.send_command(&ViaCommand::get_keyboard_value(
+            crate::command::KeyboardValueId::Uptime,
+        ))?;
         // Response: [cmd_id, value_id, ms3, ms2, ms1, ms0] (big-endian u32)
         if resp[0] == 0xFF {
             return Err(crate::ViaError::Protocol("uptime not supported".into()));
@@ -57,11 +57,13 @@ impl<'a> ViaProtocol<'a> {
 
     /// Get the firmware version from the keyboard (VIA protocol v9+).
     pub fn get_firmware_version(&self) -> ViaResult<u32> {
-        let resp = self
-            .device
-            .send_command(&ViaCommand::get_keyboard_value(crate::command::KeyboardValueId::FirmwareVersion))?;
+        let resp = self.device.send_command(&ViaCommand::get_keyboard_value(
+            crate::command::KeyboardValueId::FirmwareVersion,
+        ))?;
         if resp[0] == 0xFF {
-            return Err(crate::ViaError::Protocol("firmware version not supported".into()));
+            return Err(crate::ViaError::Protocol(
+                "firmware version not supported".into(),
+            ));
         }
         let ver = u32::from_be_bytes([resp[2], resp[3], resp[4], resp[5]]);
         debug!(firmware_version = ver, "firmware version");

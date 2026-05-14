@@ -593,7 +593,7 @@ fn kanagawa_dragon() -> Theme {
 pub struct ViarConfig {
     /// Name of the active theme (built-in or custom)
     #[serde(default = "default_theme_name")]
-    pub theme: String,
+    pub theme:   String,
     /// User-defined aliases for dynamic entries (tap dances, combos, key overrides).
     /// Keys are like "td:0", "combo:3", "ko:1".
     #[serde(default)]
@@ -607,7 +607,7 @@ fn default_theme_name() -> String {
 impl Default for ViarConfig {
     fn default() -> Self {
         Self {
-            theme: default_theme_name(),
+            theme:   default_theme_name(),
             aliases: HashMap::new(),
         }
     }

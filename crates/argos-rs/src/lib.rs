@@ -10,8 +10,11 @@
 //! # Usage
 //!
 //! ```no_run
-//! use via_protocol::{KeyboardDevice, device::discover_keyboards};
 //! use argos_rs::ArgosProtocol;
+//! use via_protocol::{
+//!     KeyboardDevice,
+//!     device::discover_keyboards,
+//! };
 //!
 //! // After connecting to a keyboard via via-protocol:
 //! // let device: KeyboardDevice = ...;
@@ -29,10 +32,17 @@ pub mod protocol;
 pub mod types;
 
 pub use command::ArgosCommandId;
-pub use error::{ArgosError, ArgosResult};
+pub use error::{
+    ArgosError,
+    ArgosResult,
+};
 pub use protocol::ArgosProtocol;
 pub use types::{
-    ArgosCombo, ArgosKbInfo, ArgosTapDance, CapturedKeycode, PointingDeviceInfo,
+    ArgosCombo,
+    ArgosKbInfo,
+    ArgosTapDance,
+    CapturedKeycode,
+    PointingDeviceInfo,
     PointingDeviceType,
 };
 

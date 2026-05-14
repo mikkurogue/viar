@@ -89,13 +89,7 @@ impl ViarApp {
                     ui.label(&data.layout.name);
                     ui.separator();
                 }
-                if themed_tab(
-                    ui,
-                    self.active_tab == ConnectedTab::About,
-                    "About",
-                    &theme,
-                )
-                .clicked()
+                if themed_tab(ui, self.active_tab == ConnectedTab::About, "About", &theme).clicked()
                 {
                     self.active_tab = ConnectedTab::About;
                 }

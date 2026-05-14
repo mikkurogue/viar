@@ -130,11 +130,7 @@ impl ViarApp {
                         "Tap Dances",
                         &format!("{} slots", dynamic.tap_dances.len()),
                     );
-                    Self::info_row(
-                        ui,
-                        "Combos",
-                        &format!("{} slots", dynamic.combos.len()),
-                    );
+                    Self::info_row(ui, "Combos", &format!("{} slots", dynamic.combos.len()));
                     Self::info_row(
                         ui,
                         "Key Overrides",
