@@ -1027,15 +1027,31 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
             // Quick key selector
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
-                // Show common keys
-                for &k in &[0x28u16, 0x2Cu16, 0x29u16, 0x2Au16, 0x2Bu16] {
+                // Letters
+                for k in 0x04u16..=0x1Du16 {
                     let n = Keycode(k).name();
                     if ui.small_button(&n).clicked() {
                         base_key = k;
                     }
                 }
-                // Letters
-                for k in 0x04u16..=0x1Du16 {
+                // Numbers
+                for k in 0x1Eu16..=0x27u16 {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Symbols
+                for &k in &[
+                    0x2Du16, 0x2E, 0x2F, 0x30, 0x31, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+                ] {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Editing keys
+                for &k in &[0x28u16, 0x2C, 0x29, 0x2A, 0x2B] {
                     let n = Keycode(k).name();
                     if ui.small_button(&n).clicked() {
                         base_key = k;
@@ -1075,13 +1091,31 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
             });
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
+                // Letters
                 for k in 0x04u16..=0x1Du16 {
                     let n = Keycode(k).name();
                     if ui.small_button(&n).clicked() {
                         base_key = k;
                     }
                 }
-                for &k in &[0x28u16, 0x2Cu16, 0x29u16, 0x2Au16, 0x2Bu16] {
+                // Numbers
+                for k in 0x1Eu16..=0x27u16 {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Symbols
+                for &k in &[
+                    0x2Du16, 0x2E, 0x2F, 0x30, 0x31, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+                ] {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Editing keys
+                for &k in &[0x28u16, 0x2C, 0x29, 0x2A, 0x2B] {
                     let n = Keycode(k).name();
                     if ui.small_button(&n).clicked() {
                         base_key = k;
@@ -1121,7 +1155,31 @@ fn render_keycode_builder(ui: &mut egui::Ui, current_kc: u16) -> Option<u16> {
             });
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(2.0, 2.0);
+                // Letters
                 for k in 0x04u16..=0x1Du16 {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Numbers
+                for k in 0x1Eu16..=0x27u16 {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Symbols
+                for &k in &[
+                    0x2Du16, 0x2E, 0x2F, 0x30, 0x31, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+                ] {
+                    let n = Keycode(k).name();
+                    if ui.small_button(&n).clicked() {
+                        base_key = k;
+                    }
+                }
+                // Editing keys
+                for &k in &[0x28u16, 0x2C, 0x29, 0x2A, 0x2B] {
                     let n = Keycode(k).name();
                     if ui.small_button(&n).clicked() {
                         base_key = k;
