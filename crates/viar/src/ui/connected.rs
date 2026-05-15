@@ -78,6 +78,17 @@ impl ViarApp {
             {
                 self.active_tab = ConnectedTab::Pointing;
             }
+            if self.qmk_settings_data.is_some()
+                && themed_tab(
+                    ui,
+                    self.active_tab == ConnectedTab::QmkSettings,
+                    "QMK Settings",
+                    &theme,
+                )
+                .clicked()
+            {
+                self.active_tab = ConnectedTab::QmkSettings;
+            }
 
             // Settings and About always available, pushed to the right
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -115,6 +126,7 @@ impl ViarApp {
             ConnectedTab::Combos => self.render_combos_tab(ui),
             ConnectedTab::KeyOverrides => self.render_key_overrides_tab(ui),
             ConnectedTab::Pointing => self.render_pointing_tab(ui),
+            ConnectedTab::QmkSettings => self.render_qmk_settings_tab(ui),
             ConnectedTab::Settings => self.render_settings_tab(ui),
             ConnectedTab::About => self.render_about_tab(ui),
         }

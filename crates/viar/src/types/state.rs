@@ -14,6 +14,7 @@ use super::{
     KeymapData,
     LightingData,
     PointingData,
+    QmkSettingsData,
     StatusMessage,
 };
 use crate::theme::{
@@ -55,6 +56,8 @@ pub struct ViarApp {
     pub dynamic_data: Option<DynamicEntryData>,
     /// Pointing device / trackpad settings
     pub pointing_data: Option<PointingData>,
+    /// QMK Settings (core settings: tapping, autoshift, magic, etc.)
+    pub qmk_settings_data: Option<QmkSettingsData>,
     /// Receiver for background HID detection result
     pub detect_rx: Option<mpsc::Receiver<DetectResult>>,
     /// Persistent config

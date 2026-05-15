@@ -47,6 +47,7 @@ impl ViarApp {
             lighting_data: None,
             dynamic_data: None,
             pointing_data: None,
+            qmk_settings_data: None,
             detect_rx: None,
             config,
             theme,
@@ -335,6 +336,7 @@ impl ViarApp {
         // Try to load dynamic entries (tap dance, combos, key overrides)
         self.dynamic_data = None;
         self.pointing_data = None;
+        self.qmk_settings_data = None;
         if let Some(dev) = &self.connected_device {
             let proto = ViaProtocol::new(dev);
             match proto.get_dynamic_entry_counts() {
@@ -378,36 +380,69 @@ impl ViarApp {
             }
         }
 
-        // Try to load pointing device / trackpad settings via QMK Settings
+        // Try to load QMK Settings (pointing device + core settings)
         if let Some(dev) = &self.connected_device {
             let proto = ViaProtocol::new(dev);
 
             match proto.qmk_settings_query() {
                 Ok(setting_ids) => {
-                    // Filter to pointing-device-related settings
+                    info!(
+                        count = setting_ids.len(),
+                        ids = ?setting_ids,
+                        "QMK settings query returned"
+                    );
+                    // Split into pointing-device and core settings
                     let pointing_ids: Vec<u16> = setting_ids
                         .iter()
                         .copied()
                         .filter(|id| (0x0100..=0x01FF).contains(id))
                         .collect();
+                    let core_ids: Vec<u16> = setting_ids
+                        .iter()
+                        .copied()
+                        .filter(|id| !(0x0100..=0x01FF).contains(id))
+                        .collect();
+
+                    // Read all values
+                    let mut all_values = std::collections::HashMap::new();
+                    for &id in &setting_ids {
+                        match proto.qmk_settings_get(id) {
+                            Ok(v) => {
+                                all_values.insert(id, v);
+                            }
+                            Err(e) => {
+                                debug!(id, error = %e, "failed to read QMK setting");
+                            }
+                        }
+                    }
+
+                    // Populate pointing data
                     if !pointing_ids.is_empty() {
                         info!(
                             count = pointing_ids.len(),
                             "loading pointing device settings"
                         );
-                        let mut values = std::collections::HashMap::new();
-                        for &id in &pointing_ids {
-                            match proto.qmk_settings_get(id) {
-                                Ok(v) => {
-                                    values.insert(id, v);
-                                }
-                                Err(e) => {
-                                    debug!(id, error = %e, "failed to read pointing setting");
-                                }
-                            }
+                        let pointing_values = pointing_ids
+                            .iter()
+                            .filter_map(|id| all_values.get(id).map(|v| (*id, v.clone())))
+                            .collect();
+                        self.pointing_data = Some(crate::types::PointingData::new(
+                            pointing_ids,
+                            pointing_values,
+                        ));
+                    }
+
+                    // Populate core QMK settings data (only if we have any settings)
+                    if !setting_ids.is_empty() {
+                        if !core_ids.is_empty() {
+                            info!(count = core_ids.len(), "loading core QMK settings");
                         }
-                        self.pointing_data =
-                            Some(crate::types::PointingData::new(pointing_ids, values));
+                        let qmk_values = setting_ids
+                            .iter()
+                            .filter_map(|id| all_values.get(id).map(|v| (*id, v.clone())))
+                            .collect();
+                        self.qmk_settings_data =
+                            Some(crate::types::QmkSettingsData::new(setting_ids, qmk_values));
                     }
                 }
                 Err(e) => {
@@ -417,8 +452,8 @@ impl ViarApp {
         }
 
         // Build detected features list based on what we successfully loaded
-        if self.lighting_data.is_some() {
-            let protocol_name = match &self.lighting_data.as_ref().unwrap().protocol {
+        if let Some(lighting) = &self.lighting_data {
+            let protocol_name = match &lighting.protocol {
                 LightingProtocol::VialRgb => "RGB Matrix (VialRGB)",
                 LightingProtocol::VialLegacy => "RGB Matrix (Vial Legacy)",
                 LightingProtocol::Via { channel } => {
@@ -448,6 +483,16 @@ impl ViarApp {
         if self.pointing_data.is_some() {
             self.detected_features.push("Pointing Device".into());
         }
+        if let Some(qmk) = &self.qmk_settings_data {
+            let core_count = qmk
+                .available_settings
+                .iter()
+                .filter(|id| qmk_rs::is_core_setting(**id))
+                .count();
+            if core_count > 0 {
+                self.detected_features.push("QMK Settings".into());
+            }
+        }
 
         if let Some(warning) = layout_warning {
             self.set_status(StatusMessage::error(warning));
@@ -471,6 +516,7 @@ impl ViarApp {
         self.lighting_data = None;
         self.dynamic_data = None;
         self.pointing_data = None;
+        self.qmk_settings_data = None;
         self.active_tab = ConnectedTab::Keymap;
         self.refresh();
     }
@@ -487,6 +533,7 @@ impl ViarApp {
         self.lighting_data = None;
         self.dynamic_data = None;
         self.pointing_data = None;
+        self.qmk_settings_data = None;
         self.active_tab = ConnectedTab::Keymap;
         self.screen = AppScreen::NoKeyboards;
         self.set_status(StatusMessage::error(

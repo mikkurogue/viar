@@ -1,12 +1,23 @@
 use eframe::egui;
+// Use qmk-rs constants for pointing device setting IDs
+use qmk_rs::{
+    QS_POINTING_AUTO_MOUSE_ENABLE,
+    QS_POINTING_AUTO_MOUSE_LAYER,
+    QS_POINTING_AUTO_MOUSE_TIMEOUT,
+    QS_POINTING_DPI,
+    QS_POINTING_DRAG_SCROLL,
+    QS_POINTING_DRAG_SCROLL_DIVISOR,
+    QS_POINTING_INVERT_SCROLL,
+    QS_POINTING_INVERT_X,
+    QS_POINTING_INVERT_Y,
+    QS_POINTING_SCROLL_DIVISOR,
+    QS_POINTING_SNIPING_DPI,
+};
 use tracing::{
     info,
     warn,
 };
-use via_protocol::{
-    ViaProtocol,
-    pointing_settings,
-};
+use via_protocol::ViaProtocol;
 
 use crate::{
     types::{
@@ -68,11 +79,11 @@ impl ViarApp {
                 .min_col_width(180.0)
                 .show(ui, |ui| {
                     // DPI
-                    if available.contains(&pointing_settings::DPI) {
+                    if available.contains(&QS_POINTING_DPI) {
                         let current = self
                             .pointing_data
                             .as_ref()
-                            .and_then(|p| p.get_u16(pointing_settings::DPI))
+                            .and_then(|p| p.get_u16(QS_POINTING_DPI))
                             .unwrap_or(400);
                         ui.label(
                             egui::RichText::new("DPI / CPI")
@@ -89,10 +100,10 @@ impl ViarApp {
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
-                                p.set_u16(pointing_settings::DPI, val as u16);
+                                p.set_u16(QS_POINTING_DPI, val as u16);
                             }
                             self.save_pointing_setting(
-                                pointing_settings::DPI,
+                                QS_POINTING_DPI,
                                 &(val as u16).to_le_bytes(),
                             );
                         }
@@ -100,11 +111,11 @@ impl ViarApp {
                     }
 
                     // Sniping DPI
-                    if available.contains(&pointing_settings::SNIPING_DPI) {
+                    if available.contains(&QS_POINTING_SNIPING_DPI) {
                         let current = self
                             .pointing_data
                             .as_ref()
-                            .and_then(|p| p.get_u16(pointing_settings::SNIPING_DPI))
+                            .and_then(|p| p.get_u16(QS_POINTING_SNIPING_DPI))
                             .unwrap_or(200);
                         ui.label(
                             egui::RichText::new("Sniping DPI")
@@ -121,10 +132,10 @@ impl ViarApp {
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
-                                p.set_u16(pointing_settings::SNIPING_DPI, val as u16);
+                                p.set_u16(QS_POINTING_SNIPING_DPI, val as u16);
                             }
                             self.save_pointing_setting(
-                                pointing_settings::SNIPING_DPI,
+                                QS_POINTING_SNIPING_DPI,
                                 &(val as u16).to_le_bytes(),
                             );
                         }
@@ -132,11 +143,11 @@ impl ViarApp {
                     }
 
                     // Scroll divisor
-                    if available.contains(&pointing_settings::SCROLL_DIVISOR) {
+                    if available.contains(&QS_POINTING_SCROLL_DIVISOR) {
                         let current = self
                             .pointing_data
                             .as_ref()
-                            .and_then(|p| p.get_u8(pointing_settings::SCROLL_DIVISOR))
+                            .and_then(|p| p.get_u8(QS_POINTING_SCROLL_DIVISOR))
                             .unwrap_or(8);
                         ui.label(
                             egui::RichText::new("Scroll Divisor")
@@ -149,22 +160,19 @@ impl ViarApp {
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
-                                p.set_u8(pointing_settings::SCROLL_DIVISOR, val as u8);
+                                p.set_u8(QS_POINTING_SCROLL_DIVISOR, val as u8);
                             }
-                            self.save_pointing_setting(
-                                pointing_settings::SCROLL_DIVISOR,
-                                &[val as u8],
-                            );
+                            self.save_pointing_setting(QS_POINTING_SCROLL_DIVISOR, &[val as u8]);
                         }
                         ui.end_row();
                     }
 
                     // Drag scroll divisor
-                    if available.contains(&pointing_settings::DRAG_SCROLL_DIVISOR) {
+                    if available.contains(&QS_POINTING_DRAG_SCROLL_DIVISOR) {
                         let current = self
                             .pointing_data
                             .as_ref()
-                            .and_then(|p| p.get_u8(pointing_settings::DRAG_SCROLL_DIVISOR))
+                            .and_then(|p| p.get_u8(QS_POINTING_DRAG_SCROLL_DIVISOR))
                             .unwrap_or(8);
                         ui.label(
                             egui::RichText::new("Drag Scroll Divisor")
@@ -177,10 +185,10 @@ impl ViarApp {
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
-                                p.set_u8(pointing_settings::DRAG_SCROLL_DIVISOR, val as u8);
+                                p.set_u8(QS_POINTING_DRAG_SCROLL_DIVISOR, val as u8);
                             }
                             self.save_pointing_setting(
-                                pointing_settings::DRAG_SCROLL_DIVISOR,
+                                QS_POINTING_DRAG_SCROLL_DIVISOR,
                                 &[val as u8],
                             );
                         }
@@ -189,11 +197,11 @@ impl ViarApp {
 
                     // Toggle settings (booleans)
                     let toggles = [
-                        (pointing_settings::INVERT_X, "Invert X Axis"),
-                        (pointing_settings::INVERT_Y, "Invert Y Axis"),
-                        (pointing_settings::INVERT_SCROLL, "Invert Scroll"),
-                        (pointing_settings::DRAG_SCROLL, "Drag Scroll Mode"),
-                        (pointing_settings::AUTO_MOUSE_ENABLE, "Auto Mouse Enable"),
+                        (QS_POINTING_INVERT_X, "Invert X Axis"),
+                        (QS_POINTING_INVERT_Y, "Invert Y Axis"),
+                        (QS_POINTING_INVERT_SCROLL, "Invert Scroll"),
+                        (QS_POINTING_DRAG_SCROLL, "Drag Scroll Mode"),
+                        (QS_POINTING_AUTO_MOUSE_ENABLE, "Auto Mouse Enable"),
                     ];
 
                     for (id, label) in toggles {
@@ -221,11 +229,11 @@ impl ViarApp {
                     }
 
                     // Auto mouse layer
-                    if available.contains(&pointing_settings::AUTO_MOUSE_LAYER) {
+                    if available.contains(&QS_POINTING_AUTO_MOUSE_LAYER) {
                         let current = self
                             .pointing_data
                             .as_ref()
-                            .and_then(|p| p.get_u8(pointing_settings::AUTO_MOUSE_LAYER))
+                            .and_then(|p| p.get_u8(QS_POINTING_AUTO_MOUSE_LAYER))
                             .unwrap_or(0);
                         ui.label(
                             egui::RichText::new("Auto Mouse Layer")
@@ -238,22 +246,19 @@ impl ViarApp {
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
-                                p.set_u8(pointing_settings::AUTO_MOUSE_LAYER, val as u8);
+                                p.set_u8(QS_POINTING_AUTO_MOUSE_LAYER, val as u8);
                             }
-                            self.save_pointing_setting(
-                                pointing_settings::AUTO_MOUSE_LAYER,
-                                &[val as u8],
-                            );
+                            self.save_pointing_setting(QS_POINTING_AUTO_MOUSE_LAYER, &[val as u8]);
                         }
                         ui.end_row();
                     }
 
                     // Auto mouse timeout
-                    if available.contains(&pointing_settings::AUTO_MOUSE_TIMEOUT) {
+                    if available.contains(&QS_POINTING_AUTO_MOUSE_TIMEOUT) {
                         let current = self
                             .pointing_data
                             .as_ref()
-                            .and_then(|p| p.get_u16(pointing_settings::AUTO_MOUSE_TIMEOUT))
+                            .and_then(|p| p.get_u16(QS_POINTING_AUTO_MOUSE_TIMEOUT))
                             .unwrap_or(500);
                         ui.label(
                             egui::RichText::new("Auto Mouse Timeout")
@@ -270,10 +275,10 @@ impl ViarApp {
                             .changed()
                         {
                             if let Some(p) = self.pointing_data.as_mut() {
-                                p.set_u16(pointing_settings::AUTO_MOUSE_TIMEOUT, val as u16);
+                                p.set_u16(QS_POINTING_AUTO_MOUSE_TIMEOUT, val as u16);
                             }
                             self.save_pointing_setting(
-                                pointing_settings::AUTO_MOUSE_TIMEOUT,
+                                QS_POINTING_AUTO_MOUSE_TIMEOUT,
                                 &(val as u16).to_le_bytes(),
                             );
                         }

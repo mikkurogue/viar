@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 via-protocol = { path = "../via-protocol" }
+qmk-rs = { path = "../qmk-rs" }
 eframe = "0.34.2"
 egui = "0.34.2"
 hidapi = "2.6.5"

@@ -389,29 +389,33 @@ impl<'a> ViaProtocol<'a> {
 
     /// Query available QMK settings from the keyboard.
     /// Returns a list of setting IDs available on this keyboard.
-    /// Used for pointing device / trackpad configuration.
+    /// The firmware returns IDs greater than the provided cursor value,
+    /// so we paginate by setting the cursor to the last ID received.
     pub fn qmk_settings_query(&self) -> ViaResult<Vec<u16>> {
         let mut settings = Vec::new();
-        let mut page: u16 = 0;
+        let mut cursor: u16 = 0;
         loop {
             let resp = self
                 .device
-                .send_command(&ViaCommand::vial_qmk_settings_query(page))?;
-            // Response: pairs of (id_lo, id_hi), terminated by 0xFFFF or 0x0000
+                .send_command(&ViaCommand::vial_qmk_settings_query(cursor))?;
+            debug!(cursor, resp = ?&resp[..], "qmk_settings_query raw response");
+            // Response: pairs of (id_lo, id_hi), terminated by 0xFFFF
             let data = &resp[..];
             let mut found_any = false;
             for chunk in data.chunks_exact(2) {
                 let id = u16::from_le_bytes([chunk[0], chunk[1]]);
-                if id == 0xFFFF || id == 0x0000 {
+                if id == 0xFFFF {
                     return Ok(settings);
                 }
-                settings.push(id);
+                if id != 0x0000 {
+                    settings.push(id);
+                }
+                cursor = cursor.max(id); // next query: "give me IDs greater than this"
                 found_any = true;
             }
             if !found_any {
                 break;
             }
-            page += 1;
         }
         Ok(settings)
     }

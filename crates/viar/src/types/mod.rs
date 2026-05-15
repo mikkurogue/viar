@@ -3,6 +3,7 @@ mod dynamic;
 mod keymap;
 mod lighting;
 mod pointing;
+mod qmk_settings;
 mod state;
 
 pub use common::{
@@ -25,6 +26,7 @@ pub use keymap::{
 };
 pub use lighting::LightingData;
 pub use pointing::PointingData;
+pub use qmk_settings::QmkSettingsData;
 pub use state::{
     DetectResult,
     ViarApp,

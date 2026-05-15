@@ -651,10 +651,10 @@ impl ViaCommand {
     /// Vial: get QMK Settings value count.
     /// Used for pointing device/trackpad configuration.
     /// Response: [count_lo, count_hi]
-    pub fn vial_qmk_settings_query(page: u16) -> Self {
+    pub fn vial_qmk_settings_query(cursor: u16) -> Self {
         Self::with_data(
             ViaCommandId::VialPrefix,
-            &[0x0E, 0x00, (page & 0xFF) as u8, (page >> 8) as u8],
+            &[0x09, (cursor & 0xFF) as u8, (cursor >> 8) as u8],
         )
     }
 
@@ -663,31 +663,21 @@ impl ViaCommand {
     pub fn vial_qmk_settings_get(setting_id: u16) -> Self {
         Self::with_data(
             ViaCommandId::VialPrefix,
-            &[
-                0x0E,
-                0x01,
-                (setting_id & 0xFF) as u8,
-                (setting_id >> 8) as u8,
-            ],
+            &[0x0A, (setting_id & 0xFF) as u8, (setting_id >> 8) as u8],
         )
     }
 
     /// Vial: set a QMK setting value.
     /// Payload: [setting_id_lo, setting_id_hi, value bytes...]
     pub fn vial_qmk_settings_set(setting_id: u16, value: &[u8]) -> Self {
-        let mut payload = vec![
-            0x0E,
-            0x02,
-            (setting_id & 0xFF) as u8,
-            (setting_id >> 8) as u8,
-        ];
+        let mut payload = vec![0x0B, (setting_id & 0xFF) as u8, (setting_id >> 8) as u8];
         payload.extend_from_slice(value);
         Self::with_data(ViaCommandId::VialPrefix, &payload)
     }
 
     /// Vial: reset QMK settings to defaults.
     pub fn vial_qmk_settings_reset() -> Self {
-        Self::with_data(ViaCommandId::VialPrefix, &[0x0E, 0x03])
+        Self::with_data(ViaCommandId::VialPrefix, &[0x0C])
     }
 
     /// Get encoder keycode for a layer/encoder/direction.

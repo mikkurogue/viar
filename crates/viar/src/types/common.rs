@@ -17,6 +17,7 @@ pub enum ConnectedTab {
     Combos,
     KeyOverrides,
     Pointing,
+    QmkSettings,
     Settings,
     About,
 }

@@ -1,0 +1,10 @@
+[package]
+name = "qmk-rs"
+version = "0.1.0"
+edition = "2024"
+description = "QMK firmware settings definitions and types for Vial protocol"
+
+[dependencies]
+
+[lints]
+workspace = true
